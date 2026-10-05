@@ -12,6 +12,11 @@ A clinical companion for low/middle-income families: voice symptom dictation, du
 
 - **https://diagnosix.vercel.app**
 
+## Links
+
+- **Repository:** https://github.com/saihitesh1448/Diagnosix.git
+- **Live URL:** https://diagnosix.vercel.app
+
 ## Features
 
 - **Voice dictation** — real-time Web Speech recognition in 8 languages (English India/US, Telugu, Hindi, and more), with symptom auto-detection from spoken keywords.
