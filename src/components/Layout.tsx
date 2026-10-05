@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject, RefObject as AnyRef } from 'react';
 import { Activity, AlertTriangle, HeartPulse } from 'lucide-react';
 import { useFamily } from '../providers/FamilyProvider';
 import { useDiagnostics } from '../providers/DiagnosticsProvider';
@@ -24,7 +24,18 @@ const SEVERITY_RING: Record<MarkerStatus, string> = {
   unknown: 'ring-1 ring-slate-600/40',
 };
 
-export function Layout({ children }: { children: ReactNode }) {
+export function Layout({
+  children,
+  symptomRef,
+  reportRef,
+}: {
+  children: ReactNode;
+  symptomRef?: RefObject<{ startListening?: () => void }>;
+  reportRef?: AnyRef<{
+    openFilePicker?: () => void;
+    openCamera?: () => void;
+  }>;
+}) {
   const { sessionId, member } = useFamily();
   const { alerts, criticalCount, focusOrgan, setFocusOrgan } = useDiagnostics();
 
@@ -165,8 +176,8 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <SymptomInput />
-          <ReportIngestion />
+          <SymptomInput ref={symptomRef} />
+          <ReportIngestion ref={reportRef} />
         </div>
 
         <BiomarkerReviewTable />

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type DragEvent } from 'react';
+import { useCallback, useRef, useState, type DragEvent, forwardRef, useImperativeHandle } from 'react';
 import { AlertTriangle, Camera, FileText, Loader2, Upload } from 'lucide-react';
 import { useDiagnostics } from '../providers/DiagnosticsProvider';
 import { QUALITY_THRESHOLD, analyseImageQuality, type ImageQuality } from '../utils/imageQuality';
@@ -24,7 +24,10 @@ interface PipelineReport {
   notes: string[];
 }
 
-export function ReportIngestion() {
+export const ReportIngestion = forwardRef(function ReportIngestion(
+  _props,
+  ref,
+) {
   const { mergeReadings, seedManualEntry, sex } = useDiagnostics();
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -35,6 +38,11 @@ export function ReportIngestion() {
   const [pastedText, setPastedText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    openFilePicker: () => fileInputRef.current?.click(),
+    openCamera: () => cameraInputRef.current?.click(),
+  }));
 
   /** Surface the tri-lingual gate modal together with the failed pipeline state. */
   const reject = useCallback((issues: string[], report: PipelineReport) => {
@@ -322,7 +330,7 @@ export function ReportIngestion() {
       )}
     </section>
   );
-}
+});
 
 function PipelineSummary({ report }: { report: PipelineReport }) {
   return (

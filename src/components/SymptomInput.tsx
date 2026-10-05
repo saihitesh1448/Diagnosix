@@ -1,90 +1,41 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { Mic, MicOff, Trash2, Waves } from 'lucide-react';
 import { SYMPTOM_BADGES } from '../utils/reportParser';
 import { useDiagnostics } from '../providers/DiagnosticsProvider';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 
-/**
- * Spoken-word -> symptom-badge mapping.
- * Includes Indian-language cognates so a user can describe symptoms in the
- * language they think in and still get the right badge selected.
- */
+/** Spoken-word -> symptom-badge mapping. Includes Indian-language cognates. */
 const SYMPTOM_KEYWORDS: Record<string, string[]> = {
   chest: [
-    'chest',
-    'heart',
-    'palpitation',
-    'palpitations',
-    'chest pain',
-    'gunde',
-    'gundelu',
-    'dil',
-    'seene',
-    'chhati',
-    'gundello',
+    'chest', 'heart', 'palpitation', 'palpitations', 'chest pain', 'gunde', 'gundelu',
+    'dil', 'seene', 'chhati', 'gundello',
   ],
   dizziness: [
-    'dizzy',
-    'dizziness',
-    'giddiness',
-    'faint',
-    'fainting',
-    'light headed',
-    'lightheaded',
-    'chakkar',
-    'tala tirugu',
-    'tirugu',
-    'chakkarana',
+    'dizzy', 'dizziness', 'giddiness', 'faint', 'fainting', 'light headed', 'lightheaded',
+    'chakkar', 'tala tirugu', 'tirugu', 'chakkarana',
   ],
   thirst: [
-    'thirst',
-    'thirsty',
-    'urination',
-    'urinating',
-    'urine',
-    'frequent urine',
-    'daham',
-    'daha',
-    'pyas',
-    'peshab',
-    'mootram',
-    'bathroom',
+    'thirst', 'thirsty', 'urination', 'urinating', 'urine', 'frequent urine', 'daham', 'daha',
+    'pyas', 'peshab', 'mootram', 'bathroom',
   ],
   swelling: [
-    'swelling',
-    'swollen',
-    'swell',
-    'edema',
-    'oedema',
-    'ankle',
-    'ankles',
-    'legs',
-    'sujan',
-    'soojan',
-    'vuppu',
-    'kaalu',
+    'swelling', 'swollen', 'swell', 'edema', 'oedema', 'ankle', 'ankles', 'legs', 'sujan',
+    'soojan', 'vuppu', 'kaalu',
   ],
   breath: [
-    'breath',
-    'breathless',
-    'breathlessness',
-    'shortness of breath',
-    'breathing',
-    'saans',
-    'sans',
-    'vuppiri',
-    'asvasam',
+    'breath', 'breathless', 'breathlessness', 'shortness of breath', 'breathing', 'saans', 'sans',
+    'vuppiri', 'asvasam',
   ],
 };
 
-const LANGUAGES: { code: string; label: string }[] = [
+export const LANGUAGES: { code: string; label: string }[] = [
   { code: 'en-IN', label: 'English (India)' },
   { code: 'te-IN', label: 'తెలుగు (Telugu)' },
   { code: 'hi-IN', label: 'हिन्दी (Hindi)' },
   { code: 'en-US', label: 'English (US)' },
 ];
 
-export function SymptomInput() {
+export const SymptomInput = forwardRef(function SymptomInput(_props, ref) {
   const { symptoms, toggleSymptom } = useDiagnostics();
   const [text, setText] = useState('');
   const [detected, setDetected] = useState<string[]>([]);
@@ -95,10 +46,6 @@ export function SymptomInput() {
     setText(value);
   }, []);
 
-  /**
-   * Only ever marks a badge when the transcript literally contains a keyword.
-   * Nothing is inferred from absence of speech.
-   */
   const detectFrom = useCallback(
     (value: string) => {
       const haystack = value.toLowerCase();
@@ -130,6 +77,18 @@ export function SymptomInput() {
 
   const { supported, listening, interim, error, lang, setLang, start, stop } =
     useSpeechRecognition({ lang: 'en-IN', onFinalTranscript: handleFinalTranscript });
+
+  const startListening = useCallback(() => {
+    if (!supported) {
+      return;
+    }
+    if (listening) return;
+    start();
+  }, [supported, listening, start]);
+
+  useImperativeHandle(ref, () => ({
+    startListening,
+  }));
 
   const displayValue = interim ? `${text}${text ? ' ' : ''}${interim}` : text;
 
@@ -307,4 +266,4 @@ export function SymptomInput() {
       )}
     </section>
   );
-}
+});
