@@ -37,11 +37,16 @@ export function ProfileSwitcher() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="glass w-[320px] p-5 space-y-4">
-            <div className="flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-700/80 rounded-2xl p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold">Family Member</h3>
-              <button onClick={() => setOpen(false)} className="p-1 rounded-lg hover:bg-slate-700/60">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="p-1 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-white transition-colors"
+                aria-label="Close"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -51,6 +56,7 @@ export function ProfileSwitcher() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-slate-800/80 border border-slate-700/80 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+              autoFocus
             />
             <input
               type="number"
@@ -59,14 +65,16 @@ export function ProfileSwitcher() {
               onChange={(e) => setAge(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-slate-800/80 border border-slate-700/80 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
             />
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-2 justify-end pt-1">
               <button
+                type="button"
                 onClick={() => setOpen(false)}
                 className="px-4 py-2 rounded-xl text-sm bg-slate-700/70 hover:bg-slate-700 transition-colors"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleCreate}
                 className="px-4 py-2 rounded-xl text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-medium transition-colors"
               >
@@ -88,20 +96,32 @@ export function ProfileSwitcher() {
           </button>
 
           {confirmOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-              <div className="glass w-[300px] p-5 space-y-4">
-                <h3 className="text-lg font-semibold">Switch Profile</h3>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+              <div className="w-full max-w-md bg-slate-900 border border-slate-700/80 rounded-2xl p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-lg font-semibold">Switch Profile</h3>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmOpen(false)}
+                    className="p-1 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-white transition-colors"
+                    aria-label="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
                 <p className="text-sm text-slate-400">
                   Switch away from <span className="font-medium text-white">{member.name}</span>?
                 </p>
-                <div className="flex gap-2 justify-end">
+                <div className="flex gap-2 justify-end pt-1">
                   <button
+                    type="button"
                     onClick={() => setConfirmOpen(false)}
                     className="px-4 py-2 rounded-xl text-sm bg-slate-700/70 hover:bg-slate-700 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
                     onClick={handleSwitch}
                     className="px-4 py-2 rounded-xl text-sm bg-red-600 hover:bg-red-500 text-white font-medium transition-colors"
                   >

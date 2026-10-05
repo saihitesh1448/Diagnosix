@@ -303,10 +303,167 @@ export function buildSkeleton() {
   };
 }
 
+// ---------------------------------------------------------------------------
+// 2D Canvas isometric fallback — always-on silhouette so the twin NEVER
+// shows a blank "unavailable" card, even on a browser with no WebGL.
+// ---------------------------------------------------------------------------
+
+function projectIsometric(x: number, y: number, z: number) {
+  const scale = 96;
+  const sx = (x - z) * (scale * 0.866);
+  const sy = (x + z) * (scale * 0.5) - y * scale;
+  return { sx, sy };
+}
+
+function drawFallbackSilhouette(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  time: number,
+) {
+  // Clear to the same deep space tint the WebGL renderer uses.
+  ctx.clearRect(0, 0, width, height);
+
+  // Glow layer — soft radial halo so the neon cyan reads over the dark bg.
+  const glow = ctx.createRadialGradient(width * 0.5, height * 0.42, 8, width * 0.5, height * 0.42, width * 0.55);
+  glow.addColorStop(0, 'rgba(6, 182, 212, 0.18)');
+  glow.addColorStop(1, 'rgba(6, 182, 212, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.save();
+  ctx.translate(width * 0.5, height * 0.46);
+
+  const px = (x: number, y: number, z: number) => {
+    const p = projectIsometric(x, y, z);
+    return [p.sx, p.sy] as const;
+  };
+
+  // ---- Body silhouette (stroke of glowing cyan points around the outline) --
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(6, 182, 212, 0.85)';
+  ctx.beginPath();
+  const bodyPoints: [number, number, number][] = [];
+  for (let i = 0; i < 60; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const rx = 0.3 + Math.random() * 0.25;
+    const ry = 0.15 + Math.random() * 0.15;
+    const rz = 0.2 + Math.random() * 0.2;
+    bodyPoints.push([
+      Math.sin(phi) * Math.cos(theta) * rx,
+      Math.sin(phi) * Math.sin(theta) * ry + 1.2,
+      Math.cos(phi) * rz,
+    ]);
+  }
+  // Thin outline loop so the silhouette shape is readable.
+  ctx.beginPath();
+  for (let i = 0; i < bodyPoints.length; i++) {
+    const [sx, sy] = px(bodyPoints[i][0], bodyPoints[i][1], bodyPoints[i][2]);
+    if (i === 0) ctx.moveTo(sx, sy);
+    else ctx.lineTo(sx, sy);
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  // Scattered glowing dots across the body so it still reads as "alive".
+  const breath = 0.18 + 0.012 * Math.sin(time * 0.0015);
+  ctx.fillStyle = '#06b6d4';
+  for (const [bx, by, bz] of bodyPoints) {
+    const [sx, sy] = px(bx, by, bz);
+    const r = Math.max(1.2, breath * 96 * 0.5);
+    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+    g.addColorStop(0, 'rgba(6, 182, 212, 0.95)');
+    g.addColorStop(1, 'rgba(6, 182, 212, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ---- Head ---------------------------------------------------------------
+  const [hSx, hSy] = px(0, 1.65, 0);
+  ctx.fillStyle = 'rgba(6, 182, 212, 0.9)';
+  ctx.beginPath();
+  ctx.arc(hSx, hSy, 10, 0, Math.PI * 2);
+  ctx.fill();
+  const gHead = ctx.createRadialGradient(hSx, hSy, 0, hSx, hSy, 22);
+  gHead.addColorStop(0, 'rgba(6, 182, 212, 0.35)');
+  gHead.addColorStop(1, 'rgba(6, 182, 212, 0)');
+  ctx.fillStyle = gHead;
+  ctx.beginPath();
+  ctx.arc(hSx, hSy, 22, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ---- Brain node (cyan highlight) ---------------------------------------
+  const [brSx, brSy] = px(0, 1.95, 0);
+  ctx.fillStyle = '#22d3ee';
+  ctx.beginPath();
+  ctx.arc(brSx, brSy, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ---- Heart node (pulses with a steady beat) ------------------------------
+  const heartY = 1.25;
+  const pulse = 0.5 + 0.5 * Math.abs(Math.sin(time * 0.0035));
+  const [hsSx, hsSy] = px(-0.08, heartY, -0.18);
+  const hr = 5 + 3 * pulse;
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath();
+  ctx.arc(hsSx, hsSy, hr, 0, Math.PI * 2);
+  ctx.fill();
+  const gHeart = ctx.createRadialGradient(hsSx, hsSy, 0, hsSx, hsSy, hr * 4);
+  gHeart.addColorStop(0, 'rgba(239, 68, 68, 0.5)');
+  gHeart.addColorStop(1, 'rgba(239, 68, 68, 0)');
+  ctx.fillStyle = gHeart;
+  ctx.beginPath();
+  ctx.arc(hsSx, hsSy, hr * 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ---- Lungs (bilateral cyan clumps) -------------------------------------
+  for (const sign of [-1, 1]) {
+    const [lSx, lSy] = px(sign * 0.14, 1.15, 0);
+    ctx.fillStyle = '#06b6d4';
+    ctx.beginPath();
+    ctx.arc(lSx, lSy, 7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ---- Pancreas (amber) ---------------------------------------------------
+  const [pcSx, pcSy] = px(0, 0.55, -0.05);
+  ctx.fillStyle = '#f59e0b';
+  ctx.beginPath();
+  ctx.arc(pcSx, pcSy, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ---- Kidneys (emerald flanks) ------------------------------------------
+  for (const sign of [-1, 1]) {
+    const [kSx, kSy] = px(sign * 0.32, 0.05, -0.05);
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath();
+    ctx.arc(kSx, kSy, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+
+  // ---- Bottom-left caption (mirrors the WebGL overlay text) --------------
+  ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+  ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
+  ctx.fillText(`fallback 2D · ≤1,200 pts · pixcap 1.5`, 12, height - 12);
+}
+
+// ---------------------------------------------------------------------------
+// BodyTwinCanvas — WebGL when available, degrades gracefully to a 2D canvas
+// that renders the same glowing neon cyan silhouette (#06b6d4) with pulsing
+// organ dots so the 3D twin is never a blank card.
+// ---------------------------------------------------------------------------
+
 export function BodyTwinCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   /** Set when the device cannot give us a WebGL context (old GPU, blocked, headless). */
   const [gpuError, setGpuError] = useState<string | null>(null);
+  /** True once we have confirmed the browser can (or cannot) provide WebGL. */
+  const [webglSupported, setWebglSupported] = useState<boolean | null>(null);
   const bodyMaterialRef = useRef<THREE.PointsMaterial | null>(null);
   const heartMaterialRef = useRef<THREE.PointsMaterial | null>(null);
   const particleCountRef = useRef(MAX_PARTICLES);
@@ -339,19 +496,34 @@ export function BodyTwinCanvas() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // 1. Verify WebGL support safely before touching the renderer.
+    const gl =
+      (canvas.getContext('webgl') as WebGLRenderingContext | null) ||
+      (canvas.getContext('experimental-webgl') as WebGLRenderingContext | null);
+    if (!gl) {
+      // Graceful fallback: the sibling 2D canvas keeps the twin alive.
+      setWebglSupported(false);
+      setGpuError('WebGL is not supported in this browser.');
+      return;
+    }
+
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
         canvas,
-        antialias: true,
         alpha: true,
-        powerPreference: 'high-performance',
+        antialias: true,
+        powerPreference: 'low-power',
       });
     } catch (error) {
       // No GPU / context refused: keep the rest of the app fully usable.
+      setWebglSupported(false);
       setGpuError(error instanceof Error ? error.message : 'WebGL is unavailable on this device.');
       return;
     }
+
+    setWebglSupported(true);
+
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, PIXEL_RATIO_CAP));
     renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
     renderer.setClearColor(0x050811, 0);
@@ -530,7 +702,78 @@ export function BodyTwinCanvas() {
     };
   }, []);
 
-  if (gpuError) {
+  // ---- 2D fallback animation loop (runs whenever WebGL is unavailable) -----
+  const fallbackCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    if (webglSupported !== false) return;
+    const fbCanvas = fallbackCanvasRef.current;
+    if (!fbCanvas) return;
+    const ctx = fbCanvas.getContext('2d');
+    if (!ctx) return;
+
+    let rafId: number | null = null;
+    let alive = true;
+
+    const loop = (time: number) => {
+      if (!alive) return;
+      rafId = requestAnimationFrame(loop);
+      drawFallbackSilhouette(ctx, fbCanvas.width, fbCanvas.height, time);
+    };
+    rafId = requestAnimationFrame(loop);
+
+    return () => {
+      alive = false;
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = null;
+    };
+  }, [webglSupported]);
+
+  // Keep the 2D canvas crisp when its container resizes.
+  useEffect(() => {
+    if (webglSupported !== false) return;
+    const fbCanvas = fallbackCanvasRef.current;
+    if (!fbCanvas) return;
+    const resize = () => {
+      const rect = fbCanvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio, PIXEL_RATIO_CAP);
+      fbCanvas.width = Math.max(Math.floor(rect.width * dpr), 1);
+      fbCanvas.height = Math.max(Math.floor(rect.height * dpr), 1);
+      fbCanvas.style.width = `${rect.width}px`;
+      fbCanvas.style.height = `${rect.height}px`;
+    };
+    resize();
+    const observer =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null;
+    observer?.observe(fbCanvas);
+    window.addEventListener('resize', resize);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', resize);
+    };
+  }, [webglSupported]);
+
+  // Explicit per-render fixup so StrictMode's double-mount/unmount never
+  // leaves a stale canvas in a bad state.
+  useEffect(() => {
+    return () => {
+      // Clear any WebGL context so the host element does not carry one across
+      // unmount/remount cycles in React 18 StrictMode.
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (gl instanceof WebGLRenderingContext) {
+          try {
+            const ext = gl.getExtension('WEBGL_lose_context');
+            if (ext) ext.loseContext();
+          } catch {
+            // Best-effort only.
+          }
+        }
+      }
+    };
+  }, []);
+
+  if (gpuError && webglSupported === false) {
     return (
       <div className="h-full w-full flex items-center justify-center p-4">
         <div className="max-w-sm text-center space-y-2">
@@ -545,8 +788,26 @@ export function BodyTwinCanvas() {
     );
   }
 
+  if (webglSupported === false) {
+    // 2D fallback mode — twin still renders, never a blank card.
+    return (
+      <div className="relative w-full h-[400px] rounded-2xl overflow-hidden bg-[#050811] border border-slate-800/60">
+        <canvas
+          ref={fallbackCanvasRef}
+          className="absolute inset-0 w-full h-full"
+          style={{ display: 'block' }}
+          aria-label="2D isometric anatomical twin (WebGL unavailable)"
+        />
+        <div className="absolute bottom-3 left-3 right-3 flex justify-between pointer-events-none text-[11px] text-slate-500 font-mono">
+          <span>idle · ≤1,200 pts · 2D fallback</span>
+          <span>drag disabled on 2D view</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative w-full h-full rounded-2xl overflow-hidden">
+    <div className="relative w-full h-[400px] rounded-2xl overflow-hidden bg-[#050811] border border-slate-800/60">
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"
