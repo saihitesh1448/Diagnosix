@@ -60,10 +60,11 @@ export function useSpeechRecognition(
     const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     if (!Ctor) return null;
     const recognition = new Ctor();
-    recognition.lang = langRef.current;
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
+
+    // Dynamically match language to the current app language.
+    recognition.lang = langRef.current;
 
     recognition.onstart = () => {
       setListening(true);
@@ -72,17 +73,23 @@ export function useSpeechRecognition(
 
     recognition.onresult = (event: SpeechRecognitionEventLike) => {
       let pending = '';
+      const transcripts: string[] = [];
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
         const result = event.results[i];
         const transcript = result[0]?.transcript ?? '';
+        transcripts.push(transcript);
         if (result.isFinal) {
-          const cleaned = transcript.trim();
-          if (cleaned) finalHandlerRef.current?.(cleaned);
+          pending = transcripts.join(' ');
         } else {
-          pending += transcript;
+          pending = transcripts.join(' ');
         }
       }
-      setInterim(pending);
+      setInterim(pending.trim());
+      if (transcripts.length) {
+        // Emit final transcript each time results arrive so the caller can
+        // detect symptoms live.
+        finalHandlerRef.current?.(transcripts.join(' '));
+      }
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {

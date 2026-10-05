@@ -3,6 +3,7 @@ import { Mic, MicOff, Trash2, Waves } from 'lucide-react';
 import { SYMPTOM_BADGES } from '../utils/reportParser';
 import { useDiagnostics } from '../providers/DiagnosticsProvider';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { useLanguage, LANGUAGES, type LangCode } from '../providers/LanguageProvider';
 
 /** Spoken-word -> symptom-badge mapping. Includes Indian-language cognates. */
 const SYMPTOM_KEYWORDS: Record<string, string[]> = {
@@ -28,12 +29,7 @@ const SYMPTOM_KEYWORDS: Record<string, string[]> = {
   ],
 };
 
-export const LANGUAGES: { code: string; label: string }[] = [
-  { code: 'en-IN', label: 'English (India)' },
-  { code: 'te-IN', label: 'తెలుగు (Telugu)' },
-  { code: 'hi-IN', label: 'हिन्दी (Hindi)' },
-  { code: 'en-US', label: 'English (US)' },
-];
+
 
 export const SymptomInput = forwardRef(function SymptomInput(_props, ref) {
   const { symptoms, toggleSymptom } = useDiagnostics();
@@ -75,8 +71,13 @@ export const SymptomInput = forwardRef(function SymptomInput(_props, ref) {
     [applyText, detectFrom],
   );
 
-  const { supported, listening, interim, error, lang, setLang, start, stop } =
-    useSpeechRecognition({ lang: 'en-IN', onFinalTranscript: handleFinalTranscript });
+  const { currentLang, setCurrentLang, t, speechLang } = useLanguage();
+  const activeCount = useMemo(
+    () => SYMPTOM_BADGES.filter((badge) => symptoms.includes(badge.id)).length,
+    [symptoms],
+  );
+  const { supported, listening, interim, error, start, stop } =
+    useSpeechRecognition({ lang: speechLang, onFinalTranscript: handleFinalTranscript });
 
   const startListening = useCallback(() => {
     if (!supported) {
@@ -91,11 +92,6 @@ export const SymptomInput = forwardRef(function SymptomInput(_props, ref) {
   }));
 
   const displayValue = interim ? `${text}${text ? ' ' : ''}${interim}` : text;
-
-  const activeCount = useMemo(
-    () => SYMPTOM_BADGES.filter((badge) => symptoms.includes(badge.id)).length,
-    [symptoms],
-  );
 
   const handleMicToggle = () => {
     if (listening) {
@@ -114,18 +110,17 @@ export const SymptomInput = forwardRef(function SymptomInput(_props, ref) {
   return (
     <section className="glass p-4 flex flex-col gap-4" aria-label="Symptom input">
       <header className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+        <div>            <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
             <Waves className="w-4 h-4 text-cyan-400" />
-            Symptoms — Speak or Tap
+            {t('symptomInput.header', 'Symptoms — Speak or Tap')}
           </h2>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Voice is transcribed live. Tip badges are coloured by what you report.
+            {t('symptomInput.subtitle', 'Voice is transcribed live. Tip badges are coloured by what you report.')}
           </p>
         </div>
         <select
-          value={lang}
-          onChange={(event) => setLang(event.target.value)}
+          value={currentLang}
+          onChange={(event) => setCurrentLang(event.target.value as LangCode)}
           className="text-[11px] bg-slate-800/80 border border-slate-700/80 rounded-lg px-2 py-1.5 text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
           aria-label="Speech recognition language"
         >
@@ -189,8 +184,8 @@ export const SymptomInput = forwardRef(function SymptomInput(_props, ref) {
           ) : (
             <p className="text-xs text-slate-500 leading-snug">
               {supported
-                ? 'Tap the mic and describe how you feel — “chest pain since morning”.'
-                : 'This browser has no speech engine. Type below or tap a symptom badge.'}
+                ? t('symptomInput.micPrompt', 'Tap the mic and describe how you feel — “chest pain since morning”.')
+                : t('symptomInput.noEngine', 'This browser has no speech engine. Type below or tap a symptom badge.')}
             </p>
           )}
         </div>
@@ -210,15 +205,14 @@ export const SymptomInput = forwardRef(function SymptomInput(_props, ref) {
             detectFrom(event.target.value);
           }}
           rows={3}
-          placeholder="Type or speak the symptoms in your own words…"
+          placeholder={t('symptomInput.placeholder', 'Type or speak the symptoms in your own words…')}
           className="flex-1 resize-none px-3 py-2 rounded-xl bg-slate-800/70 border border-slate-700/80 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-        />
-        <button
-          type="button"
-          onClick={clearAll}
-          title="Clear symptoms"
-          className="mt-1 p-2 rounded-xl bg-slate-800/70 border border-slate-700/80 hover:border-slate-500/70 transition-colors"
-        >
+        />          <button
+            type="button"
+            onClick={clearAll}
+            title={t('symptomInput.clearTitle', 'Clear symptoms')}
+            className="mt-1 p-2 rounded-xl bg-slate-800/70 border border-slate-700/80 hover:border-slate-500/70 transition-colors"
+          >
           <Trash2 className="w-4 h-4 text-slate-400" />
         </button>
       </div>
@@ -226,9 +220,11 @@ export const SymptomInput = forwardRef(function SymptomInput(_props, ref) {
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
-            Quick select
+            {t('symptomInput.quickSelect', 'Quick select')}
           </h3>
-          <span className="text-[11px] text-slate-500 font-mono">{activeCount} active</span>
+          <span className="text-[11px] text-slate-500 font-mono">
+            {t('symptomInput.active', `{n} active`, { n: String(activeCount) })}
+          </span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {SYMPTOM_BADGES.map((badge) => {
@@ -246,7 +242,7 @@ export const SymptomInput = forwardRef(function SymptomInput(_props, ref) {
                 }`}
               >
                 <span className="text-lg leading-none">{badge.emoji}</span>
-                <span className="leading-snug">{badge.label}</span>
+                <span className="leading-snug">{t(`badge.${badge.id}`, badge.label)}</span>
               </button>
             );
           })}
@@ -255,13 +251,13 @@ export const SymptomInput = forwardRef(function SymptomInput(_props, ref) {
 
       {detected.length > 0 && (
         <p className="text-[11px] text-slate-500">
-          Auto-detected from your words:{' '}
+          {t('symptomInput.autoDetected', 'Auto-detected from your words:')}{' '}
           <span className="text-cyan-300">
             {detected
-              .map((id) => SYMPTOM_BADGES.find((badge) => badge.id === id)?.label ?? id)
+              .map((id) => t(`badge.${id}`, SYMPTOM_BADGES.find((badge) => badge.id === id)?.label ?? id))
               .join(', ')}
           </span>{' '}
-          — tap a badge again to remove it.
+          {t('symptomInput.removeHint', '— tap a badge again to remove it.')}
         </p>
       )}
     </section>

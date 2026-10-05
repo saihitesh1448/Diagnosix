@@ -20,6 +20,8 @@ A clinical companion for low/middle-income families: voice symptom dictation, du
 - **Offline-first IndexedDB history** — symptom and lab data persists locally so the app remains usable without a connection.
 - **Emergency 108 dispatch** — one-tap direct dialing (`tel:108`) and a printable 1-page doctor preparation summary.
 - **3D anatomical twin** — 60 FPS Three.js twin with WebGL crash guards and a 2D canvas fallback, plus a medical hologram hero section with an optimized WebGL2 shader engine for low-RAM hardware.
+- **Full Hindi & Telugu reactive UI** — all UI text (header, subtitle, placeholders, lab report section, buttons, symptom badges, biomarker table headers) is bound to a central `LanguageContext`; selecting Hindi or Telugu anywhere instantly re-renders every component without a page refresh.
+- **Audio Clinical Storyteller bar** — fixed glassmorphic bottom bar with animated waveform icon, live reading-summary preview, and a glowing "Listen to Full Doctor Summary" button that synthesizes the caring doctor explanation in the chosen language (Hindi / Telugu / English) via `speechSynthesis`, with `onvoiceschanged` voice loading, OS-native Hindi/Telugu voice selection, and a real-time synchronized subtitle fallback when no installed voice is available.
 
 ## Team
 

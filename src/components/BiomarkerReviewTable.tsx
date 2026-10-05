@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Check, ClipboardList, Pencil, X } from 'lucide-react';
 import { useDiagnostics } from '../providers/DiagnosticsProvider';
+import { useLanguage } from '../providers/LanguageProvider';
 import {
   MARKER_BY_ID,
-  STATUS_META,
   computeStatus,
   formatRange,
   type MarkerId,
@@ -12,6 +12,7 @@ import {
 
 export function BiomarkerReviewTable() {
   const { readings, updateReading, seedManualEntry, sex, clearAll } = useDiagnostics();
+  const { t } = useLanguage();
   const [editing, setEditing] = useState<MarkerId | null>(null);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -57,23 +58,21 @@ export function BiomarkerReviewTable() {
         <div>
           <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
             <ClipboardList className="w-4 h-4 text-cyan-400" />
-            Verify Every Value
+            {t('biomarkerTable.header', 'Verify Every Value')}
           </h2>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Faded or misread print? Tap a row and type the correct number from your paper report.
+            {t('biomarkerTable.subtitle', 'Faded or misread print? Tap a row and type the correct number from your paper report.')}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono text-slate-500">
-            {verifiedCount}/{readings.length} with values
-          </span>
-          <button
-            type="button"
-            onClick={seedManualEntry}
-            className="px-3 py-1.5 rounded-xl text-[11px] bg-slate-800/80 border border-slate-700/80 hover:border-cyan-400/60 transition-colors"
-          >
-            Add missing markers
-          </button>
+        <div className="flex items-center gap-2">            <span className="text-[11px] font-mono text-slate-500">
+            {verifiedCount}/{readings.length} {t('biomarkerTable.withValues', 'with values')}
+          </span>            <button
+              type="button"
+              onClick={seedManualEntry}
+              className="px-3 py-1.5 rounded-xl text-[11px] bg-slate-800/80 border border-slate-700/80 hover:border-cyan-400/60 transition-colors"
+            >
+              {t('biomarkerTable.addMissing', 'Add missing markers')}
+            </button>
           {readings.length > 0 && (
             <button
               type="button"
@@ -94,37 +93,46 @@ export function BiomarkerReviewTable() {
 
       {sorted.length === 0 ? (
         <p className="text-xs text-slate-500 py-6 text-center">
-          No values yet. Upload a report, or press “Add missing markers” to key in numbers from the
-          paper printout.
+          {t('biomarkerTable.zeroValues', 'No values yet. Upload a report, or press “Add missing markers” to key in numbers from the paper printout.')}
         </p>
       ) : (
         <div className="overflow-x-auto -mx-1 px-1">
           <table className="w-full text-sm border-separate border-spacing-y-1">
             <thead>
               <tr className="text-[11px] uppercase tracking-wider text-slate-500 text-left">
-                <th className="font-semibold px-2 py-1">Biomarker</th>
-                <th className="font-semibold px-2 py-1">Detected Value</th>
-                <th className="font-semibold px-2 py-1">Reference Range</th>
-                <th className="font-semibold px-2 py-1">Status</th>
-                <th className="font-semibold px-2 py-1 text-right">Edit</th>
+                <th className="font-semibold px-2 py-1">{t('biomarkerTable.thBiomarker', 'Biomarker')}</th>
+                <th className="font-semibold px-2 py-1">{t('biomarkerTable.thValue', 'Detected Value')}</th>
+                <th className="font-semibold px-2 py-1">{t('biomarkerTable.thRange', 'Reference Range')}</th>
+                <th className="font-semibold px-2 py-1">{t('biomarkerTable.thStatus', 'Status')}</th>
+                <th className="font-semibold px-2 py-1 text-right">{t('biomarkerTable.thEdit', 'Edit')}</th>
               </tr>
             </thead>
             <tbody>
               {sorted.map((reading) => {
                 const status = computeStatus(reading, sex);
-                const meta = STATUS_META[status];
                 const def = MARKER_BY_ID[reading.id];
                 const isEditing = editing === reading.id;
+                const statusKey = `biomarkerTable.status${status.charAt(0).toUpperCase() + status.slice(1)}`;
+                const statusDesc = t(statusKey);
+                const statusIcon = status === 'critical' ? '🛑' : status === 'borderline' ? '⚠️' : status === 'optimal' ? '✔️' : '❔';
+                const statusTone =
+                  status === 'critical'
+                    ? 'text-red-300 bg-red-500/15 border-red-500/40'
+                    : status === 'borderline'
+                      ? 'text-amber-300 bg-amber-500/15 border-amber-500/40'
+                      : status === 'optimal'
+                        ? 'text-emerald-300 bg-emerald-500/15 border-emerald-500/40'
+                        : 'text-slate-300 bg-slate-500/15 border-slate-500/40';
                 return (
                   <tr key={reading.id} className="bg-slate-800/50">
                     <td className="px-2 py-2 rounded-l-xl">
                       <div className="font-medium text-slate-200">{reading.label}</div>
                       <div className="text-[10px] text-slate-500">
                         {reading.humanVerified
-                          ? 'entered by you'
+                          ? t('biomarkerTable.enteredByYou', 'entered by you')
                           : reading.source === 'ocr'
-                            ? `read from report · ${reading.confidence}`
-                            : reading.confidence}
+                            ? t('biomarkerTable.readFromReport', 'read from report · {conf}', { conf: String(reading.confidence) })
+                            : String(reading.confidence)}
                       </div>
                     </td>
                     <td className="px-2 py-2">
@@ -166,7 +174,7 @@ export function BiomarkerReviewTable() {
                               {formatValue(reading.value)} <span className="text-slate-500">{reading.unit}</span>
                             </>
                           ) : (
-                            <span className="text-slate-500">— not entered —</span>
+                            <span className="text-slate-500">{t('biomarkerTable.notEntered', '— not entered —')}</span>
                           )}
                         </span>
                       )}
@@ -176,11 +184,11 @@ export function BiomarkerReviewTable() {
                     </td>
                     <td className="px-2 py-2">
                       <span
-                        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] whitespace-nowrap ${meta.tone}`}
-                        title={meta.description}
+                        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] whitespace-nowrap ${statusTone}`}
+                        title={statusDesc}
                       >
-                        <span aria-hidden>{meta.icon}</span>
-                        {meta.description}
+                        <span aria-hidden>{statusIcon}</span>
+                        {statusDesc}
                       </span>
                     </td>
                     <td className="px-2 py-2 rounded-r-xl text-right">

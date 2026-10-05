@@ -1,21 +1,33 @@
-import type { ReactNode, RefObject, RefObject as AnyRef } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { Activity, AlertTriangle, HeartPulse } from 'lucide-react';
 import { useFamily } from '../providers/FamilyProvider';
 import { useDiagnostics } from '../providers/DiagnosticsProvider';
+import { useLanguage } from '../providers/LanguageProvider';
 import { ProfileSwitcher } from './ProfileSwitcher';
 import { BiomarkerReviewTable } from './BiomarkerReviewTable';
 import { ReportIngestion } from './ReportIngestion';
 import { SymptomInput } from './SymptomInput';
 import type { OrganKey, MarkerStatus } from '../utils/reportParser';
 
-const ORGAN_LABELS: { organ: OrganKey; label: string; swatch: string }[] = [
-  { organ: 'heart', label: 'Heart / Arteries', swatch: 'bg-red-400' },
-  { organ: 'pancreas', label: 'Pancreas / Blood Sugar', swatch: 'bg-amber-400' },
-  { organ: 'kidneys', label: 'Kidneys / Renal', swatch: 'bg-emerald-400' },
-  { organ: 'lungs', label: 'Lungs', swatch: 'bg-cyan-400' },
-  { organ: 'brain', label: 'Brain', swatch: 'bg-sky-300' },
-  { organ: 'legs', label: 'Legs / Ankles', swatch: 'bg-teal-300' },
-];
+const ORGAN_KEYS: OrganKey[] = ['heart', 'pancreas', 'kidneys', 'lungs', 'brain', 'legs'];
+
+const ORGAN_SWATCH: Record<OrganKey, string> = {
+  heart: 'bg-red-400',
+  pancreas: 'bg-amber-400',
+  kidneys: 'bg-emerald-400',
+  lungs: 'bg-cyan-400',
+  brain: 'bg-sky-300',
+  legs: 'bg-teal-300',
+};
+
+const ORGAN_LABELS_FALLBACK: Record<OrganKey, string> = {
+  heart: 'Heart / Arteries',
+  pancreas: 'Pancreas / Blood Sugar',
+  kidneys: 'Kidneys / Renal',
+  lungs: 'Lungs',
+  brain: 'Brain',
+  legs: 'Legs / Ankles',
+};
 
 const SEVERITY_RING: Record<MarkerStatus, string> = {
   critical: 'ring-2 ring-red-500/70',
@@ -31,12 +43,13 @@ export function Layout({
 }: {
   children: ReactNode;
   symptomRef?: RefObject<{ startListening?: () => void }>;
-  reportRef?: AnyRef<{
+  reportRef?: RefObject<{
     openFilePicker?: () => void;
     openCamera?: () => void;
   }>;
 }) {
   const { sessionId, member } = useFamily();
+  const { t } = useLanguage();
   const { alerts, criticalCount, focusOrgan, setFocusOrgan } = useDiagnostics();
 
   return (
@@ -107,27 +120,28 @@ export function Layout({
           <aside className="glass p-4 space-y-4">
             <div>
               <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
-                Organ Nodes
+                {t('layout.organNodes', 'Organ Nodes')}
               </h3>
               <ul className="space-y-2">
-                {ORGAN_LABELS.map((entry) => {
-                  const alert = alerts.find((item) => item.organ === entry.organ);
+                {ORGAN_KEYS.map((organ) => {
+                  const alert = alerts.find((item) => item.organ === organ);
                   const severity: MarkerStatus = alert?.severity ?? 'unknown';
-                  const active = focusOrgan === entry.organ;
+                  const active = focusOrgan === organ;
+                  const labelKey = `layout.badge${organ.charAt(0).toUpperCase() + organ.slice(1)}`;
                   return (
-                    <li key={entry.organ}>
+                    <li key={organ}>
                       <button
                         type="button"
-                        onClick={() => setFocusOrgan(active ? null : entry.organ)}
+                        onClick={() => setFocusOrgan(active ? null : organ)}
                         className={`w-full text-left flex items-start gap-2.5 px-2 py-1.5 rounded-xl transition-colors ${
                           active ? 'bg-cyan-500/15' : 'hover:bg-slate-800/60'
                         }`}
                       >
                         <span
-                          className={`mt-1 w-2.5 h-2.5 rounded-full shrink-0 ${entry.swatch} ${SEVERITY_RING[severity]}`}
+                          className={`mt-1 w-2.5 h-2.5 rounded-full shrink-0 ${ORGAN_SWATCH[organ]} ${SEVERITY_RING[severity]}`}
                         />
                         <span className="min-w-0">
-                          <span className="block text-sm text-slate-300">{entry.label}</span>
+                          <span className="block text-sm text-slate-300">{t(labelKey, ORGAN_LABELS_FALLBACK[organ])}</span>
                           <span
                             className={`block text-[11px] truncate ${
                               severity === 'critical'
@@ -137,7 +151,7 @@ export function Layout({
                                   : 'text-slate-500'
                             }`}
                           >
-                            {alert ? alert.reason : 'no flags'}
+                            {alert ? alert.reason : t('layout.noFlags', 'no flags')}
                           </span>
                         </span>
                       </button>

@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type DragEvent, forwardRef, useImperativeHandle } from 'react';
 import { AlertTriangle, Camera, FileText, Loader2, Upload } from 'lucide-react';
 import { useDiagnostics } from '../providers/DiagnosticsProvider';
+import { useLanguage } from '../providers/LanguageProvider';
 import { QUALITY_THRESHOLD, analyseImageQuality, type ImageQuality } from '../utils/imageQuality';
 import {
   ACCEPTED_EXTENSIONS,
@@ -29,6 +30,7 @@ export const ReportIngestion = forwardRef(function ReportIngestion(
   ref,
 ) {
   const { mergeReadings, seedManualEntry, sex } = useDiagnostics();
+  const { t } = useLanguage();
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -216,11 +218,10 @@ export const ReportIngestion = forwardRef(function ReportIngestion(
       <header>
         <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
           <FileText className="w-4 h-4 text-cyan-400" />
-          Lab Report — Photo, PDF or Paste
+          {t('reportIngestion.header', 'Lab Report — Photo, PDF or Paste')}
         </h2>
         <p className="text-[11px] text-slate-500 mt-0.5">
-          Indian formats (FBS, PPBS, S. Creatinine, PLT) and international ones are both understood.
-          Blurry scans are rejected instead of guessed.
+          {t('reportIngestion.subtitle', 'Indian formats (FBS, PPBS, S. Creatinine, PLT) and international ones are both understood. Blurry scans are rejected instead of guessed.')}
         </p>
       </header>
 
@@ -246,7 +247,7 @@ export const ReportIngestion = forwardRef(function ReportIngestion(
           <>
             <Upload className="w-6 h-6 mx-auto text-slate-400" />
             <p className="text-xs text-slate-400 mt-2">
-              Drag &amp; drop a JPG / PNG / PDF, or choose a source:
+              {t('reportIngestion.dropHint', 'Drag & drop a JPG / PNG / PDF, or choose a source:')}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
               <button
@@ -254,7 +255,7 @@ export const ReportIngestion = forwardRef(function ReportIngestion(
                 onClick={() => fileInputRef.current?.click()}
                 className="px-3 py-2 rounded-xl text-xs bg-slate-800/80 border border-slate-700/80 hover:border-cyan-400/60 transition-colors"
               >
-                Choose file
+                {t('reportIngestion.chooseFile', 'Choose file')}
               </button>
               <button
                 type="button"
@@ -262,7 +263,7 @@ export const ReportIngestion = forwardRef(function ReportIngestion(
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-cyan-600/80 hover:bg-cyan-500 transition-colors text-white"
               >
                 <Camera className="w-3.5 h-3.5" />
-                Camera capture
+                {t('reportIngestion.cameraCapture', 'Camera capture')}
               </button>
             </div>
           </>
@@ -292,24 +293,22 @@ export const ReportIngestion = forwardRef(function ReportIngestion(
         />
       </div>
 
-      <details className="rounded-xl bg-slate-800/40 border border-slate-700/60 px-3 py-2">
-        <summary className="text-[11px] text-slate-400 cursor-pointer">
-          Report text received on WhatsApp / printout? Paste it instead
-        </summary>
+      <details className="rounded-xl bg-slate-800/40 border border-slate-700/60 px-3 py-2">          <summary className="text-[11px] text-slate-400 cursor-pointer">
+            {t('reportIngestion.pasteDisclosure', 'Report text received on WhatsApp / printout? Paste it instead')}
+          </summary>
         <textarea
           value={pastedText}
           onChange={(event) => setPastedText(event.target.value)}
           rows={4}
           placeholder={'Fasting Blood Sugar 142 mg/dL (70-99)\nHbA1c 7.8 %'}
           className="mt-2 w-full resize-y px-3 py-2 rounded-xl bg-slate-900/70 border border-slate-700/80 text-xs font-mono text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-        />
-        <button
-          type="button"
-          onClick={handleParsePasted}
-          className="mt-2 px-3 py-1.5 rounded-xl text-xs bg-cyan-600/80 hover:bg-cyan-500 text-white transition-colors"
-        >
-          Parse pasted text
-        </button>
+        />          <button
+            type="button"
+            onClick={handleParsePasted}
+            className="mt-2 px-3 py-1.5 rounded-xl text-xs bg-cyan-600/80 hover:bg-cyan-500 text-white transition-colors"
+          >
+            {t('reportIngestion.parsePasted', 'Parse pasted text')}
+          </button>
       </details>
 
       {report && <PipelineSummary report={report} />}
