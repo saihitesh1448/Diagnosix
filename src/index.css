@@ -12,4 +12,48 @@
   .glass {
     @apply bg-slate-900/80 backdrop-blur-xl border border-slate-800/80 rounded-2xl;
   }
+
+  /*
+   * Modal entrance animation for the `animate-in fade-in zoom-in-95` class
+   * contract. Implemented locally (same CSS-variable composition as
+   * tailwindcss-animate) so the classes work without adding a dependency; if
+   * the plugin is ever installed it simply takes over these names.
+   * `duration-150` is a core utility, so the duration is declared here.
+   */
+  .animate-in {
+    animation-name: dx-enter;
+    animation-duration: 150ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: both;
+  }
+
+  .fade-in {
+    --tw-enter-opacity: 0;
+  }
+
+  .zoom-in-95 {
+    --tw-enter-scale: 0.95;
+  }
+}
+
+@keyframes dx-enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: scale(var(--tw-enter-scale, 1));
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/*
+ * Accessibility + safety valve: when motion is reduced (or animation is
+ * unavailable) the animation is dropped entirely, so the card falls back to its
+ * natural, fully-visible state instead of being pinned to the `from` frame.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    animation: none;
+  }
 }
