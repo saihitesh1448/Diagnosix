@@ -8,10 +8,11 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { MedicalHologramHero } from './components/ui/medical-hologram-hero';
 import { EmergencyEscalation } from './components/EmergencyEscalation';
 import { AudioStorytellerBar } from './components/AudioStorytellerBar';
+import type { RefObject } from 'react';
 import { useDiagnostics } from './providers/DiagnosticsProvider';
 import { useLanguage } from './providers/LanguageProvider';
 
-export default function App() {
+function AppInner() {
   const [emergencyOpen, setEmergencyOpen] = useState(false);
   const { readings, symptoms } = useDiagnostics();
   const { currentLang } = useLanguage();
@@ -55,35 +56,46 @@ export default function App() {
   const handleEmergency = useCallback(() => setEmergencyOpen(true), []);
 
   return (
+    <>
+      <MedicalHologramHero
+        hotColor="#06b6d4"
+        midColor="#3b82f6"
+        coolColor="#0f172a"
+        onSpeak={handleSpeak}
+        onUpload={handleUpload}
+        onEmergency={handleEmergency}
+      />
+
+      <EmergencyEscalation open={emergencyOpen} onClose={() => setEmergencyOpen(false)} />
+
+      <Layout
+        symptomRef={symptomRef as RefObject<{
+          startListening?: () => void;
+        }>}
+        reportRef={reportRef as RefObject<{
+          openFilePicker?: () => void;
+          openCamera?: () => void;
+        }>}
+      >
+        <span id="symptom-input-anchor" aria-hidden="true" />
+        <span id="report-ingestion-anchor" aria-hidden="true" />
+
+        <ErrorBoundary label="3D twin">
+          <BodyTwinCanvas />
+        </ErrorBoundary>
+      </Layout>
+
+      <AudioStorytellerBar summary={storySummary} />
+    </>
+  );
+}
+
+export default function App() {
+  return (
     <FamilyProvider>
       <DiagnosticsProvider>
         <LanguageProvider>
-          <>
-            <MedicalHologramHero
-              hotColor="#06b6d4"
-              midColor="#3b82f6"
-              coolColor="#0f172a"
-              onSpeak={handleSpeak}
-              onUpload={handleUpload}
-              onEmergency={handleEmergency}
-            />
-
-            <EmergencyEscalation open={emergencyOpen} onClose={() => setEmergencyOpen(false)} />
-
-            <Layout
-              symptomRef={symptomRef}
-              reportRef={reportRef}
-            >
-              <span id="symptom-input-anchor" aria-hidden="true" />
-              <span id="report-ingestion-anchor" aria-hidden="true" />
-
-              <ErrorBoundary label="3D twin">
-                <BodyTwinCanvas />
-              </ErrorBoundary>
-            </Layout>
-
-            <AudioStorytellerBar summary={storySummary} />
-          </>
+          <AppInner />
         </LanguageProvider>
       </DiagnosticsProvider>
     </FamilyProvider>

@@ -27,7 +27,7 @@ const PHRASES: Record<string, Record<LangCode, string>> = {
   'symptomInput.removeHint':
     { 'en-IN': '— tap a badge again to remove it.', 'hi-IN': '— हटाने के लिए बैज को फिर से टैप करें।', 'te-IN': '— తొలగించడానికి బேడ్జ్‌ను మళ్లీ ట్యాప్ చేయండి.', 'en-US': '— tap a badge again to remove it.' },
   'symptomInput.quickSelect':
-    { 'en-IN': 'Quick select', 'hi-IN': '_QUICK चयन', 'te-IN': 'త్వరగా ఎంచుకోవడం', 'en-US': 'Quick select' },
+    { 'en-IN': 'Quick select', 'hi-IN': 'त्वरित चयन', 'te-IN': 'త్వరగా ఎంచుకోవడం', 'en-US': 'Quick select' },
   'symptomInput.active':
     { 'en-IN': '{n} active', 'hi-IN': '{n} सक्रिय', 'te-IN': '{n} సక్రియంగా ఉన్నాయి', 'en-US': '{n} active' },
   'symptomInput.clearTitle':
@@ -88,6 +88,8 @@ const PHRASES: Record<string, Record<LangCode, string>> = {
     { 'en-IN': 'read from report · {conf}', 'hi-IN': 'रिपोर्ट से पढ़ा · {conf}', 'te-IN': 'నివేదిక నుండి చదవబడింది · {conf}', 'en-US': 'read from report · {conf}' },
   'biomarkerTable.notEntered':
     { 'en-IN': '— not entered —', 'hi-IN': '— दर्ज नहीं किया —', 'te-IN': '— నమోదు చేయలేదు —', 'en-US': '— not entered —' },
+  'biomarkerTable.rangesNote':
+    { 'en-IN': 'Ranges are adult reference intervals. Values are converted to a single canonical unit (mg/dL, %, g/dL, /mcL, uIU/mL, mmHg) so Indian and international printouts stay comparable.', 'hi-IN': 'सीमाएं वयस्क संदर्भ अंतराल हैं। मान एक ही मानक यूनिट (mg/dL, %, g/dL, /mcL, uIU/mL, mmHg) में बदले जाते हैं ताकि भारतीय और अंतर्राष्ट्रीय प्रिंटआउट तुलनीय रहें।', 'te-IN': 'పరిధులు ప్రాప్తవయస్కుల రెఫరెన్స్ ఇంటర్వల్స్. విలువలు ఒకే కానోనికల్ యూనిట్ (mg/dL, %, g/dL, /mcL, uIU/mL, mmHg) లోకి మార్చబడతాయి, తద్వారా భారతీయ మరియు అంతర్జాతీయ ప్రింట్‌ఆఉట్లు పోల్చడానికి సరిపోతాయి.', 'en-US': 'Ranges are adult reference intervals. Values are converted to a single canonical unit (mg/dL, %, g/dL, /mcL, uIU/mL, mmHg) so Indian and international printouts stay comparable.' },
   'biomarkerTable.statusOptimal':
     { 'en-IN': 'Optimal Range / Healthy', 'hi-IN': 'स्वस्थ सीमा / स्वस्थ', 'te-IN': 'ఆరోగ్యకరమైన పరిధి / ఆరోగ్యకరం', 'en-US': 'Optimal Range / Healthy' },
   'biomarkerTable.statusBorderline':
@@ -98,8 +100,6 @@ const PHRASES: Record<string, Record<LangCode, string>> = {
     { 'en-IN': 'No verified value yet', 'hi-IN': 'अभी तक सत्यापित मान नहीं', 'te-IN': 'ధృవీకరించిన విలువ లేదు', 'en-US': 'No verified value yet' },
   'biomarkerTable.editHint':
     { 'en-IN': 'Edit', 'hi-IN': 'संपादित करें', 'te-IN': 'సవరించు', 'en-US': 'Edit' },
-  'biomarkerTable.rangesNote':
-    { 'en-IN': 'Ranges are adult reference intervals. Values are converted to a single canonical unit (mg/dL, %, g/dL, /mcL, uIU/mL, mmHg) so Indian and international printouts stay comparable.', 'hi-IN': 'सीमाएं वयस्क संदर्भ अंतराल हैं। मान एक ही मानक単位 (mg/dL, %, g/dL, /mcL, uIU/mL, mmHg) में बदले जाते हैं ताकि भारतीय और अंतर्राष्ट्रीय प्रिंटआउट तुलनीय रहें।', 'te-IN': 'పరిధులు ప్రాప్తవయస్కుల రెఫరెన్స్ ఇంటర్వల్స్. విలువలు ఒకే కానోనికల్ యూనిట్ (mg/dL, %, g/dL, /mcL, uIU/mL, mmHg) లోకి మార్చబడతాయి, తద్వారా భారతీయ మరియు అంతర్జాతీయ ప్రింట్‌ఆఉట్లు పోల్చడానికి సరిపోతాయి.', 'en-US': 'Ranges are adult reference intervals. Values are converted to a single canonical unit (mg/dL, %, g/dL, /mcL, uIU/mL, mmHg) so Indian and international printouts stay comparable.' },
 
   // ---- Layout ----
   'layout.badgeHeart': { 'en-IN': 'Heart / Arteries', 'hi-IN': 'हृदय / धमनियां', 'te-IN': 'గుండె / ధమనులు', 'en-US': 'Heart / Arteries' },

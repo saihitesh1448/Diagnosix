@@ -211,8 +211,7 @@ export function BiomarkerReviewTable() {
       )}
 
       <p className="mt-3 text-[10px] text-slate-600">
-        Ranges are adult reference intervals. Values are converted to a single canonical unit
-        (mg/dL, %, g/dL, /mcL, uIU/mL, mmHg) so Indian and international printouts stay comparable.
+        {t('biomarkerTable.rangesNote', 'Ranges are adult reference intervals. Values are converted to a single canonical unit (mg/dL, %, g/dL, /mcL, uIU/mL, mmHg) so Indian and international printouts stay comparable.')}
       </p>
     </section>
   );
