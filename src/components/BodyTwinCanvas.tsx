@@ -302,168 +302,287 @@ export function buildSkeleton() {
       (bodyCloud.geometry.attributes.position as THREE.BufferAttribute).count + heartPoints,
   };
 }
-
 // ---------------------------------------------------------------------------
-// 2D Canvas isometric fallback — always-on silhouette so the twin NEVER
-// shows a blank "unavailable" card, even on a browser with no WebGL.
+// Pure-HTML5 2D holographic twin.
+//
+// This path cannot fail: no GPU, no shaders, no context negotiation. It draws a
+// complete neon-cyan anatomical silhouette (head, neck, chest, ribcage, arms,
+// abdomen, hips, legs and feet) with pulsating organ nodes, and it supports the
+// same mouse/touch 360° orbit as the WebGL twin. It is what guarantees the user
+// never sees a black box or an error card.
 // ---------------------------------------------------------------------------
 
-function projectIsometric(x: number, y: number, z: number) {
-  const scale = 96;
-  const sx = (x - z) * (scale * 0.866);
-  const sy = (x + z) * (scale * 0.5) - y * scale;
-  return { sx, sy };
+type BodyPart = 'head' | 'neck' | 'chest' | 'rib' | 'arm' | 'abdomen' | 'hips' | 'leg' | 'foot';
+
+interface BodyNode {
+  x: number;
+  y: number;
+  z: number;
+  part: BodyPart;
 }
 
-function drawFallbackSilhouette(
+/**
+ * Probe WebGL on a throwaway offscreen canvas.
+ *
+ * Doing the probe here — instead of on the rendered <canvas> — is what stops the
+ * real element from ever holding a context of the wrong type. Reusing one DOM
+ * node first for WebGL and then for `getContext('2d')` throws
+ * "Canvas has an existing context of a different type", which silently blanked
+ * the twin. That was the root cause of the previous black box.
+ */
+function canUseWebGL(): boolean {
+  if (typeof document === 'undefined') return false;
+  try {
+    const probe = document.createElement('canvas');
+    const gl = (probe.getContext('webgl') ||
+      probe.getContext('webgl2') ||
+      probe.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+    if (!gl) return false;
+    const lose = gl.getExtension('WEBGL_lose_context');
+    if (lose) lose.loseContext();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Elliptical ring of surface points — the building block of the body volume. */
+function ring(y: number, rx: number, rz: number, count: number, part: BodyPart): BodyNode[] {
+  const nodes: BodyNode[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const t = (i / count) * Math.PI * 2;
+    nodes.push({ x: Math.cos(t) * rx, y, z: Math.sin(t) * rz, part });
+  }
+  return nodes;
+}
+
+/** Evenly distributed sphere-surface points (head and shoulder joints). */
+function sphere(
+  cx: number,
+  cy: number,
+  cz: number,
+  r: number,
+  count: number,
+  part: BodyPart,
+): BodyNode[] {
+  const nodes: BodyNode[] = [];
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < count; i += 1) {
+    const y = 1 - (i / (count - 1)) * 2;
+    const radius = Math.sqrt(Math.max(0, 1 - y * y));
+    const theta = golden * i;
+    nodes.push({
+      x: cx + Math.cos(theta) * radius * r,
+      y: cy + y * r,
+      z: cz + Math.sin(theta) * radius * r,
+      part,
+    });
+  }
+  return nodes;
+}
+
+/** Tapered limb between two joints (arms, legs, feet). */
+function limb(
+  a: readonly [number, number, number],
+  b: readonly [number, number, number],
+  radius: number,
+  steps: number,
+  ringCount: number,
+  part: BodyPart,
+): BodyNode[] {
+  const nodes: BodyNode[] = [];
+  for (let s = 0; s <= steps; s += 1) {
+    const t = s / steps;
+    const x = a[0] + (b[0] - a[0]) * t;
+    const y = a[1] + (b[1] - a[1]) * t;
+    const z = a[2] + (b[2] - a[2]) * t;
+    const r = radius * (0.74 + 0.26 * Math.sin(Math.PI * t));
+    for (const node of ring(y, r, r, ringCount, part)) {
+      nodes.push({ x: node.x + x, y, z: node.z + z, part });
+    }
+  }
+  return nodes;
+}
+
+/** The full humanoid point model — generated once, reused every frame. */
+const BODY_MODEL: BodyNode[] = (() => {
+  const nodes: BodyNode[] = [];
+
+  // Head + neck (44 + 24)
+  nodes.push(...sphere(0, 1.62, 0, 0.115, 44, 'head'));
+  nodes.push(...ring(1.5, 0.055, 0.055, 12, 'neck'));
+  nodes.push(...ring(1.45, 0.062, 0.062, 12, 'neck'));
+
+  // Chest + ribcage (the rib rings are emphasised when drawn)
+  const chestLevels = [1.43, 1.37, 1.31, 1.25, 1.19, 1.13, 1.07];
+  chestLevels.forEach((y, index) => {
+    const swell = Math.sin((index / (chestLevels.length - 1)) * Math.PI) * 0.028;
+    nodes.push(...ring(y, 0.196 + swell, 0.126, 26, index % 2 === 0 ? 'rib' : 'chest'));
+  });
+
+  // Shoulders
+  nodes.push(...sphere(-0.212, 1.42, 0, 0.058, 16, 'chest'));
+  nodes.push(...sphere(0.212, 1.42, 0, 0.058, 16, 'chest'));
+
+  // Arms + hands (4 × 9 rings × 10 = 360)
+  nodes.push(...limb([-0.212, 1.41, 0], [-0.298, 1.05, 0.015], 0.052, 8, 10, 'arm'));
+  nodes.push(...limb([-0.298, 1.05, 0.015], [-0.334, 0.72, 0.03], 0.042, 8, 10, 'arm'));
+  nodes.push(...limb([0.212, 1.41, 0], [0.298, 1.05, 0.015], 0.052, 8, 10, 'arm'));
+  nodes.push(...limb([0.298, 1.05, 0.015], [0.334, 0.72, 0.03], 0.042, 8, 10, 'arm'));
+
+  // Abdomen
+  for (const y of [1.01, 0.95, 0.89, 0.83]) {
+    nodes.push(...ring(y, 0.166, 0.106, 20, 'abdomen'));
+  }
+
+  // Hips / pelvis
+  for (const y of [0.78, 0.725]) {
+    nodes.push(...ring(y, 0.186, 0.122, 22, 'hips'));
+  }
+
+  // Legs (thigh then calf) — 4 × 8 rings × 11 = 352
+  nodes.push(...limb([-0.09, 0.74, 0], [-0.101, 0.4, 0], 0.076, 7, 11, 'leg'));
+  nodes.push(...limb([-0.101, 0.4, 0], [-0.096, 0.08, 0], 0.056, 7, 11, 'leg'));
+  nodes.push(...limb([0.09, 0.74, 0], [0.101, 0.4, 0], 0.076, 7, 11, 'leg'));
+  nodes.push(...limb([0.101, 0.4, 0], [0.096, 0.08, 0], 0.056, 7, 11, 'leg'));
+
+  // Feet
+  nodes.push(...limb([-0.096, 0.055, 0], [-0.096, 0.028, 0.135], 0.046, 3, 9, 'foot'));
+  nodes.push(...limb([0.096, 0.055, 0], [0.096, 0.028, 0.135], 0.046, 3, 9, 'foot'));
+
+  return nodes;
+})();
+
+interface OrganNode {
+  key: 'heart' | 'lungs' | 'pancreas' | 'kidneys';
+  x: number;
+  y: number;
+  z: number;
+  colour: string;
+  glow: string;
+  radius: number;
+}
+
+const ORGAN_NODES: OrganNode[] = [
+  { key: 'heart', x: -0.052, y: 1.245, z: 0.062, colour: '#ef4444', glow: '239, 68, 68', radius: 6 },
+  { key: 'lungs', x: -0.118, y: 1.3, z: 0, colour: '#06b6d4', glow: '6, 182, 212', radius: 7 },
+  { key: 'lungs', x: 0.118, y: 1.3, z: 0, colour: '#06b6d4', glow: '6, 182, 212', radius: 7 },
+  { key: 'pancreas', x: 0, y: 1.0, z: -0.03, colour: '#f59e0b', glow: '245, 158, 11', radius: 5.5 },
+  { key: 'kidneys', x: -0.138, y: 0.9, z: -0.058, colour: '#10b981', glow: '16, 185, 129', radius: 4.8 },
+  { key: 'kidneys', x: 0.138, y: 0.9, z: -0.058, colour: '#10b981', glow: '16, 185, 129', radius: 4.8 },
+];
+
+/** Orthographic projection of a 3D point after a yaw/pitch orbit. */
+function projectOrbit(
+  x: number,
+  y: number,
+  z: number,
+  yaw: number,
+  tilt: number,
+  scale: number,
+  cx: number,
+  cy: number,
+): { sx: number; sy: number; depth: number } {
+  const cosYaw = Math.cos(yaw);
+  const sinYaw = Math.sin(yaw);
+  const rx = x * cosYaw + z * sinYaw;
+  const rz = -x * sinYaw + z * cosYaw;
+  const cosTilt = Math.cos(tilt);
+  const sinTilt = Math.sin(tilt);
+  const ry = y * cosTilt - rz * sinTilt;
+  const depth = y * sinTilt + rz * cosTilt;
+  // The model is centred on y = 0.9 so the whole body sits in the panel.
+  return { sx: cx + rx * scale, sy: cy - (ry - 0.9) * scale, depth };
+}
+
+/** Draw one frame of the 2D hologram. Dependency-free and allocation-light. */
+function drawHologram(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
   time: number,
+  yaw: number,
+  tilt: number,
 ) {
-  // Clear to the same deep space tint the WebGL renderer uses.
+  const scale = Math.min(width / 1.08, height / 1.95);
+  const cx = width * 0.5;
+  const cy = height * 0.5;
+
   ctx.clearRect(0, 0, width, height);
 
-  // Glow layer — soft radial halo so the neon cyan reads over the dark bg.
-  const glow = ctx.createRadialGradient(width * 0.5, height * 0.42, 8, width * 0.5, height * 0.42, width * 0.55);
-  glow.addColorStop(0, 'rgba(6, 182, 212, 0.18)');
-  glow.addColorStop(1, 'rgba(6, 182, 212, 0)');
-  ctx.fillStyle = glow;
+  // Deep-space halo so the neon cyan reads clearly over the dark panel.
+  const halo = ctx.createRadialGradient(cx, cy, 12, cx, cy, Math.max(width, height) * 0.62);
+  halo.addColorStop(0, 'rgba(6, 182, 212, 0.18)');
+  halo.addColorStop(0.5, 'rgba(6, 182, 212, 0.05)');
+  halo.addColorStop(1, 'rgba(6, 182, 212, 0)');
+  ctx.fillStyle = halo;
   ctx.fillRect(0, 0, width, height);
 
-  ctx.save();
-  ctx.translate(width * 0.5, height * 0.46);
+  const breath = 0.5 + 0.5 * Math.sin(time * 0.0016);
 
-  const px = (x: number, y: number, z: number) => {
-    const p = projectIsometric(x, y, z);
-    return [p.sx, p.sy] as const;
-  };
+  // Silhouette points, painter-sorted back-to-front for a true 3D read.
+  const points = BODY_MODEL.map((node) => ({
+    ...projectOrbit(node.x, node.y, node.z, yaw, tilt, scale, cx, cy),
+    part: node.part,
+  }));
+  points.sort((a, b) => a.depth - b.depth);
 
-  // ---- Body silhouette (stroke of glowing cyan points around the outline) --
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = 'rgba(6, 182, 212, 0.85)';
-  ctx.beginPath();
-  const bodyPoints: [number, number, number][] = [];
-  for (let i = 0; i < 60; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    const rx = 0.3 + Math.random() * 0.25;
-    const ry = 0.15 + Math.random() * 0.15;
-    const rz = 0.2 + Math.random() * 0.2;
-    bodyPoints.push([
-      Math.sin(phi) * Math.cos(theta) * rx,
-      Math.sin(phi) * Math.sin(theta) * ry + 1.2,
-      Math.cos(phi) * rz,
-    ]);
+  ctx.globalCompositeOperation = 'lighter';
+  for (const point of points) {
+    const emphasized = point.part === 'rib' || point.part === 'head';
+    const depthFactor = clamp((point.depth + 0.35) / 0.7, 0, 1);
+    const alpha = 0.26 + 0.4 * depthFactor + (emphasized ? 0.14 : 0);
+    const radius = (emphasized ? 1.5 : 1.15) + 0.35 * breath;
+    ctx.fillStyle = `rgba(6, 182, 212, ${Math.min(0.88, alpha)})`;
+    ctx.beginPath();
+    ctx.arc(point.sx, point.sy, radius, 0, Math.PI * 2);
+    ctx.fill();
   }
-  // Thin outline loop so the silhouette shape is readable.
-  ctx.beginPath();
-  for (let i = 0; i < bodyPoints.length; i++) {
-    const [sx, sy] = px(bodyPoints[i][0], bodyPoints[i][1], bodyPoints[i][2]);
-    if (i === 0) ctx.moveTo(sx, sy);
-    else ctx.lineTo(sx, sy);
-  }
-  ctx.closePath();
-  ctx.stroke();
+  ctx.globalCompositeOperation = 'source-over';
 
-  // Scattered glowing dots across the body so it still reads as "alive".
-  const breath = 0.18 + 0.012 * Math.sin(time * 0.0015);
-  ctx.fillStyle = '#06b6d4';
-  for (const [bx, by, bz] of bodyPoints) {
-    const [sx, sy] = px(bx, by, bz);
-    const r = Math.max(1.2, breath * 96 * 0.5);
-    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
-    g.addColorStop(0, 'rgba(6, 182, 212, 0.95)');
-    g.addColorStop(1, 'rgba(6, 182, 212, 0)');
-    ctx.fillStyle = g;
+  // Pulsating organ nodes drawn on top of the body volume.
+  const beat = 0.5 + 0.5 * Math.abs(Math.sin(time * 0.0032));
+  const organs = ORGAN_NODES.map((organ) => ({
+    ...projectOrbit(organ.x, organ.y, organ.z, yaw, tilt, scale, cx, cy),
+    organ,
+  }));
+  organs.sort((a, b) => a.depth - b.depth);
+
+  for (const { sx, sy, organ } of organs) {
+    const grow = organ.key === 'heart' ? 1 + 0.4 * beat : 1 + 0.1 * Math.sin(time * 0.002);
+    const base = Math.max(3, organ.radius * Math.max(0.75, scale / 200));
+    const r = base * grow;
+
+    const organHalo = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 3.4);
+    organHalo.addColorStop(0, `rgba(${organ.glow}, 0.8)`);
+    organHalo.addColorStop(0.4, `rgba(${organ.glow}, 0.28)`);
+    organHalo.addColorStop(1, `rgba(${organ.glow}, 0)`);
+    ctx.fillStyle = organHalo;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r * 3.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = organ.colour;
     ctx.beginPath();
     ctx.arc(sx, sy, r, 0, Math.PI * 2);
     ctx.fill();
-  }
 
-  // ---- Head ---------------------------------------------------------------
-  const [hSx, hSy] = px(0, 1.65, 0);
-  ctx.fillStyle = 'rgba(6, 182, 212, 0.9)';
-  ctx.beginPath();
-  ctx.arc(hSx, hSy, 10, 0, Math.PI * 2);
-  ctx.fill();
-  const gHead = ctx.createRadialGradient(hSx, hSy, 0, hSx, hSy, 22);
-  gHead.addColorStop(0, 'rgba(6, 182, 212, 0.35)');
-  gHead.addColorStop(1, 'rgba(6, 182, 212, 0)');
-  ctx.fillStyle = gHead;
-  ctx.beginPath();
-  ctx.arc(hSx, hSy, 22, 0, Math.PI * 2);
-  ctx.fill();
-
-  // ---- Brain node (cyan highlight) ---------------------------------------
-  const [brSx, brSy] = px(0, 1.95, 0);
-  ctx.fillStyle = '#22d3ee';
-  ctx.beginPath();
-  ctx.arc(brSx, brSy, 5, 0, Math.PI * 2);
-  ctx.fill();
-
-  // ---- Heart node (pulses with a steady beat) ------------------------------
-  const heartY = 1.25;
-  const pulse = 0.5 + 0.5 * Math.abs(Math.sin(time * 0.0035));
-  const [hsSx, hsSy] = px(-0.08, heartY, -0.18);
-  const hr = 5 + 3 * pulse;
-  ctx.fillStyle = '#ef4444';
-  ctx.beginPath();
-  ctx.arc(hsSx, hsSy, hr, 0, Math.PI * 2);
-  ctx.fill();
-  const gHeart = ctx.createRadialGradient(hsSx, hsSy, 0, hsSx, hsSy, hr * 4);
-  gHeart.addColorStop(0, 'rgba(239, 68, 68, 0.5)');
-  gHeart.addColorStop(1, 'rgba(239, 68, 68, 0)');
-  ctx.fillStyle = gHeart;
-  ctx.beginPath();
-  ctx.arc(hsSx, hsSy, hr * 4, 0, Math.PI * 2);
-  ctx.fill();
-
-  // ---- Lungs (bilateral cyan clumps) -------------------------------------
-  for (const sign of [-1, 1]) {
-    const [lSx, lSy] = px(sign * 0.14, 1.15, 0);
-    ctx.fillStyle = '#06b6d4';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(lSx, lSy, 7, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.arc(sx, sy, r + 1.6, 0, Math.PI * 2);
+    ctx.stroke();
   }
-
-  // ---- Pancreas (amber) ---------------------------------------------------
-  const [pcSx, pcSy] = px(0, 0.55, -0.05);
-  ctx.fillStyle = '#f59e0b';
-  ctx.beginPath();
-  ctx.arc(pcSx, pcSy, 5, 0, Math.PI * 2);
-  ctx.fill();
-
-  // ---- Kidneys (emerald flanks) ------------------------------------------
-  for (const sign of [-1, 1]) {
-    const [kSx, kSy] = px(sign * 0.32, 0.05, -0.05);
-    ctx.fillStyle = '#10b981';
-    ctx.beginPath();
-    ctx.arc(kSx, kSy, 4.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.restore();
-
-  // ---- Bottom-left caption (mirrors the WebGL overlay text) --------------
-  ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
-  ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
-  ctx.fillText(`fallback 2D · ≤1,200 pts · pixcap 1.5`, 12, height - 12);
 }
-
-// ---------------------------------------------------------------------------
-// BodyTwinCanvas — WebGL when available, degrades gracefully to a 2D canvas
-// that renders the same glowing neon cyan silhouette (#06b6d4) with pulsing
-// organ dots so the 3D twin is never a blank card.
-// ---------------------------------------------------------------------------
 
 export function BodyTwinCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  /** Set when the device cannot give us a WebGL context (old GPU, blocked, headless). */
-  const [gpuError, setGpuError] = useState<string | null>(null);
-  /** True once we have confirmed the browser can (or cannot) provide WebGL. */
-  const [webglSupported, setWebglSupported] = useState<boolean | null>(null);
+  const fallbackCanvasRef = useRef<HTMLCanvasElement>(null);
+  /**
+   * Which twin is live: `'gl'` is the three.js WebGL twin, `'2d'` is the
+   * fail-proof HTML5 hologram. Probed once, offscreen, before either mounts.
+   */
+  const [mode, setMode] = useState<'gl' | '2d'>(() => (canUseWebGL() ? 'gl' : '2d'));
   const bodyMaterialRef = useRef<THREE.PointsMaterial | null>(null);
   const heartMaterialRef = useRef<THREE.PointsMaterial | null>(null);
   const particleCountRef = useRef(MAX_PARTICLES);
@@ -492,20 +611,11 @@ export function BodyTwinCanvas() {
 
   useVisibilityPause(isAnimatingRef);
 
+  // ---- WebGL twin: only ever mounted when the offscreen probe succeeded -----
   useEffect(() => {
+    if (mode !== 'gl') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    // 1. Verify WebGL support safely before touching the renderer.
-    const gl =
-      (canvas.getContext('webgl') as WebGLRenderingContext | null) ||
-      (canvas.getContext('experimental-webgl') as WebGLRenderingContext | null);
-    if (!gl) {
-      // Graceful fallback: the sibling 2D canvas keeps the twin alive.
-      setWebglSupported(false);
-      setGpuError('WebGL is not supported in this browser.');
-      return;
-    }
 
     let renderer: THREE.WebGLRenderer;
     try {
@@ -515,14 +625,12 @@ export function BodyTwinCanvas() {
         antialias: true,
         powerPreference: 'low-power',
       });
-    } catch (error) {
-      // No GPU / context refused: keep the rest of the app fully usable.
-      setWebglSupported(false);
-      setGpuError(error instanceof Error ? error.message : 'WebGL is unavailable on this device.');
+    } catch {
+      // No GPU, or the context was refused. Hand the twin to the 2D hologram
+      // instead of surfacing an error — the user never sees a black box.
+      setMode('2d');
       return;
     }
-
-    setWebglSupported(true);
 
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, PIXEL_RATIO_CAP));
     renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
@@ -642,11 +750,12 @@ export function BodyTwinCanvas() {
     canvas.addEventListener('pointercancel', onPointerUp);
     canvas.addEventListener('pointerleave', onPointerUp);
 
-    // Some low-end drivers drop the context under memory pressure.
+    // Low-end drivers drop the context under memory pressure. Swap to the 2D
+    // hologram rather than showing an error state.
     const onContextLost = (event: Event) => {
       event.preventDefault();
       isAnimatingRef.current = false;
-      setGpuError('The graphics context was lost (low memory). Reload to restore the twin.');
+      setMode('2d');
     };
     canvas.addEventListener('webglcontextlost', onContextLost);
 
@@ -696,16 +805,36 @@ export function BodyTwinCanvas() {
       });
       scene.clear();
       renderer.dispose();
-      renderer.forceContextLoss();
       bodyMaterialRef.current = null;
       heartMaterialRef.current = null;
     };
-  }, []);
+  }, [mode]);
 
-  // ---- 2D fallback animation loop (runs whenever WebGL is unavailable) -----
-  const fallbackCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  // ---- 2D hologram: sizing first so the first frame is already crisp -------
   useEffect(() => {
-    if (webglSupported !== false) return;
+    if (mode !== '2d') return;
+    const fbCanvas = fallbackCanvasRef.current;
+    if (!fbCanvas) return;
+
+    const resize = () => {
+      const rect = fbCanvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio, PIXEL_RATIO_CAP);
+      fbCanvas.width = Math.max(Math.floor(rect.width * dpr), 1);
+      fbCanvas.height = Math.max(Math.floor(rect.height * dpr), 1);
+    };
+    resize();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null;
+    observer?.observe(fbCanvas);
+    window.addEventListener('resize', resize);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', resize);
+    };
+  }, [mode]);
+
+  // ---- 2D hologram animation + 360° orbit interaction ----------------------
+  useEffect(() => {
+    if (mode !== '2d') return;
     const fbCanvas = fallbackCanvasRef.current;
     if (!fbCanvas) return;
     const ctx = fbCanvas.getContext('2d');
@@ -717,90 +846,77 @@ export function BodyTwinCanvas() {
     const loop = (time: number) => {
       if (!alive) return;
       rafId = requestAnimationFrame(loop);
-      drawFallbackSilhouette(ctx, fbCanvas.width, fbCanvas.height, time);
+      if (!isAnimatingRef.current) return;
+      if (!isDraggingRef.current) {
+        // Gentle idle turntable so the twin still reads as three-dimensional.
+        rotationRef.current.y += 0.0035;
+      }
+      drawHologram(
+        ctx,
+        fbCanvas.width,
+        fbCanvas.height,
+        time,
+        rotationRef.current.y,
+        rotationRef.current.x,
+      );
     };
     rafId = requestAnimationFrame(loop);
+
+    const onPointerDown = (event: PointerEvent) => {
+      isDraggingRef.current = true;
+      lastPointerRef.current = { x: event.clientX, y: event.clientY };
+      fbCanvas.setPointerCapture(event.pointerId);
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      if (!isDraggingRef.current) return;
+      const dx = event.clientX - lastPointerRef.current.x;
+      const dy = event.clientY - lastPointerRef.current.y;
+      rotationRef.current.y += dx * 0.01;
+      rotationRef.current.x = clamp(rotationRef.current.x + dy * 0.005, -1.2, 1.2);
+      lastPointerRef.current = { x: event.clientX, y: event.clientY };
+    };
+    const onPointerUp = () => {
+      isDraggingRef.current = false;
+    };
+
+    fbCanvas.addEventListener('pointerdown', onPointerDown);
+    fbCanvas.addEventListener('pointermove', onPointerMove);
+    fbCanvas.addEventListener('pointerup', onPointerUp);
+    fbCanvas.addEventListener('pointercancel', onPointerUp);
+    fbCanvas.addEventListener('pointerleave', onPointerUp);
 
     return () => {
       alive = false;
       if (rafId !== null) cancelAnimationFrame(rafId);
       rafId = null;
+      fbCanvas.removeEventListener('pointerdown', onPointerDown);
+      fbCanvas.removeEventListener('pointermove', onPointerMove);
+      fbCanvas.removeEventListener('pointerup', onPointerUp);
+      fbCanvas.removeEventListener('pointercancel', onPointerUp);
+      fbCanvas.removeEventListener('pointerleave', onPointerUp);
     };
-  }, [webglSupported]);
+  }, [mode]);
 
-  // Keep the 2D canvas crisp when its container resizes.
-  useEffect(() => {
-    if (webglSupported !== false) return;
-    const fbCanvas = fallbackCanvasRef.current;
-    if (!fbCanvas) return;
-    const resize = () => {
-      const rect = fbCanvas.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio, PIXEL_RATIO_CAP);
-      fbCanvas.width = Math.max(Math.floor(rect.width * dpr), 1);
-      fbCanvas.height = Math.max(Math.floor(rect.height * dpr), 1);
-      fbCanvas.style.width = `${rect.width}px`;
-      fbCanvas.style.height = `${rect.height}px`;
-    };
-    resize();
-    const observer =
-      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null;
-    observer?.observe(fbCanvas);
-    window.addEventListener('resize', resize);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener('resize', resize);
-    };
-  }, [webglSupported]);
-
-  // Explicit per-render fixup so StrictMode's double-mount/unmount never
-  // leaves a stale canvas in a bad state.
-  useEffect(() => {
-    return () => {
-      // Clear any WebGL context so the host element does not carry one across
-      // unmount/remount cycles in React 18 StrictMode.
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-        if (gl instanceof WebGLRenderingContext) {
-          try {
-            const ext = gl.getExtension('WEBGL_lose_context');
-            if (ext) ext.loseContext();
-          } catch {
-            // Best-effort only.
-          }
-        }
-      }
-    };
-  }, []);
-
-  if (gpuError && webglSupported === false) {
-    return (
-      <div className="h-full w-full flex items-center justify-center p-4">
-        <div className="max-w-sm text-center space-y-2">
-          <p className="text-sm text-amber-300">3D twin unavailable on this device</p>
-          <p className="text-[11px] text-slate-500 font-mono break-words">{gpuError}</p>
-          <p className="text-[11px] text-slate-500">
-            Symptoms, lab values and the verification table keep working. Use the organ list on the
-            right to see which system is flagged.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (webglSupported === false) {
-    // 2D fallback mode — twin still renders, never a blank card.
+  if (mode === '2d') {
+    // Pure HTML5 hologram — always renders, never an error card. The distinct
+    // `key` forces React to build a brand-new <canvas>, so this element never
+    // inherits a WebGL context from the twin above.
     return (
       <div className="relative w-full h-[400px] rounded-2xl overflow-hidden bg-[#050811] border border-slate-800/60">
         <canvas
+          key="twin-2d"
           ref={fallbackCanvasRef}
-          className="absolute inset-0 w-full h-full"
-          style={{ display: 'block' }}
-          aria-label="2D isometric anatomical twin (WebGL unavailable)"
+          className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"
+          style={{ display: 'block', touchAction: 'none' }}
+          aria-label="Holographic anatomical twin"
         />
         <div className="absolute bottom-3 left-3 right-3 flex justify-between pointer-events-none text-[11px] text-slate-500 font-mono">
-          <span>idle · ≤1,200 pts · 2D fallback</span>
-          <span>drag disabled on 2D view</span>
+          <span>
+            {`${focusOrgan ? `focus: ${focusOrgan}` : 'idle'} · ≤${MAX_PARTICLES.toLocaleString(
+              'en-IN',
+            )} pts · 2D hologram`}
+          </span>
+          <span>drag to rotate</span>
         </div>
       </div>
     );
@@ -809,6 +925,7 @@ export function BodyTwinCanvas() {
   return (
     <div className="relative w-full h-[400px] rounded-2xl overflow-hidden bg-[#050811] border border-slate-800/60">
       <canvas
+        key="twin-gl"
         ref={canvasRef}
         className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"
         style={{ touchAction: 'none' }}
@@ -816,7 +933,9 @@ export function BodyTwinCanvas() {
       />
       <div className="absolute bottom-3 left-3 right-3 flex justify-between pointer-events-none text-[11px] text-slate-500 font-mono">
         <span>
-          {focusOrgan ? `focus: ${focusOrgan}` : 'idle'} · ≤{particleCountRef.current.toLocaleString('en-IN')} pts · pixcap {PIXEL_RATIO_CAP}
+          {`${focusOrgan ? `focus: ${focusOrgan}` : 'idle'} · ≤${particleCountRef.current.toLocaleString(
+            'en-IN',
+          )} pts · pixcap ${PIXEL_RATIO_CAP}`}
         </span>
         <span>drag to rotate</span>
       </div>
