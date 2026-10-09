@@ -15,16 +15,23 @@ interface StorytellerBarProps {
 }
 
 export function AudioStorytellerBar({ summary }: StorytellerBarProps) {
-  const { speechLang, t } = useLanguage();
+  const { currentLang, t } = useLanguage();
   void summary;
   const { readings, symptoms } = useDiagnostics();
+  const speechLang: string = currentLang ?? 'en-IN';
 
   const [state, setState] = useState<SpeakingState>('idle');
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
-  const langTagRef = useRef('en-IN');
-  const voicesReady = useRef(false);  const summaryText =
+  /**
+   * Installed voices are state, not a ref: the browser installs them
+   * asynchronously, and a ref read during render left `pickVoice` holding an
+   * empty list forever — which is why every language played in the same default
+   * voice.
+   */
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const langTagRef = useRef(speechLang);
+  const summaryText =
     useMemo(() => {
       const parts: string[] = [];
 
@@ -54,20 +61,106 @@ export function AudioStorytellerBar({ summary }: StorytellerBarProps) {
         : t('storyteller.healthTitle', 'your health summary');
     }, [readings, symptoms, t]);
 
-  const voices = voicesRef.current;
-  const pickVoice = useCallback((tag: string) => {
-    // Prefer a voice whose lang starts with the requested tag, otherwise the
-    // first voice whose lang includes the tag, otherwise any installed voice.
-    const exact = voices.find((v) => v.lang.toLowerCase() === tag.toLowerCase());
-    if (exact) return exact;
-    const fuzzy = voices.find((v) => v.lang.toLowerCase().startsWith(tag.toLowerCase()));
-    if (fuzzy) return fuzzy;
-    const anyVoice = voices.find((v) => v.lang.toLowerCase().startsWith('en'));
-    return anyVoice ?? voices[0] ?? null;
+  /** Region code -> words a vendor is likely to use in the voice name. */
+  const REGION_HINTS: Record<string, string> = {
+    in: 'india',
+    us: 'us',
+    gb: 'uk',
+    au: 'australia',
+  };
+
+  const pickVoice = useCallback(
+    (tag: string): SpeechSynthesisVoice | null => {
+      const wanted = tag.toLowerCase().replace('_', '-');
+      const [lang, region] = wanted.split('-');
+      const sameLang = voices.filter(
+        (v) => v.lang.toLowerCase().replace('_', '-').split('-')[0] === lang,
+      );
+      if (!sameLang.length) return null;
+
+      // 1. Exact tag, e.g. hi-IN or en-US.
+      const exact = sameLang.find((v) => v.lang.toLowerCase().replace('_', '-') === wanted);
+      if (exact) return exact;
+
+      // 2. Same region by tag, then by the vendor's own naming (…India, …US).
+      if (region) {
+        const hint = REGION_HINTS[region];
+        const byTag = sameLang.find((v) => v.lang.toLowerCase().includes(region));
+        if (byTag) return byTag;
+        if (hint) {
+          const byName = sameLang.find((v) => v.name.toLowerCase().includes(hint));
+          if (byName) return byName;
+        }
+        // 3. A different region of the same language still beats a foreign one.
+        const anyRegion = sameLang.find((v) => v.lang.toLowerCase().includes('-'));
+        if (anyRegion) return anyRegion;
+      }
+
+      return sameLang[0];
+    },
+    [voices],
+  );
+
+  /**
+   * Last-resort voice when the device has no voice for the selected language.
+   *
+   * English is preferred deliberately: the English summary is the text we fall
+   * back to, and an English voice can actually pronounce it. Picking "whatever
+   * the browser defaults to" is what made Hindi/Telugu playback sound broken.
+   */
+  const pickFallbackVoice = useCallback((): SpeechSynthesisVoice | null => {
+    const english = voices.filter(
+      (voice) => voice.lang.toLowerCase().replace('_', '-').split('-')[0] === 'en',
+    );
+    return english[0] ?? voices[0] ?? null;
   }, [voices]);
 
+  /**
+   * The voice the selected language will really be spoken with, and whether it
+   * genuinely speaks that language. Both are needed: the text must be chosen to
+   * match the voice, otherwise Telugu script goes to an English voice and the
+   * user hears nothing at all.
+   */
+  const activeVoice = useMemo(
+    () => pickVoice(speechLang) ?? pickFallbackVoice(),
+    [pickVoice, pickFallbackVoice, speechLang],
+  );
+  const hasNativeVoice = useMemo(
+    () => Boolean(pickVoice(speechLang)),
+    [pickVoice, speechLang],
+  );
+
+  /**
+   * True when a voice genuinely speaks the requested locale rather than merely
+   * sharing its language. `pickVoice` deliberately degrades to another region of
+   * the same language when the exact locale is missing (en-IN -> David/US on a
+   * machine with only US voices), and that degradation has to be visible: it is
+   * the difference between "the voice changes" and "the voice looks stuck".
+   */
+  const voiceMatches = useCallback(
+    (tag: string, voice: SpeechSynthesisVoice | null): boolean => {
+      if (!voice) return false;
+      const want = tag.toLowerCase().replace('_', '-');
+      const have = voice.lang.toLowerCase().replace('_', '-');
+      if (have === want) return true;
+      const region = want.split('-')[1];
+      // A bare language tag ("en") is satisfied by any variant of it.
+      if (!region) return true;
+      if (have.includes(region)) return true;
+      const hint = REGION_HINTS[region];
+      return Boolean(hint && voice.name.toLowerCase().includes(hint));
+    },
+    [],
+  );
+
   const speak = useCallback(
-    (text: string, tag: string) => {
+    (
+      text: string,
+      tag: string,
+      voice: SpeechSynthesisVoice | null,
+      /** True when `text` is really in `tag`'s language and `voice` speaks it. */
+      nativeSpeech: boolean,
+    ) => {
       const synth = window.speechSynthesis;
       if (!synth) {
         setState('subtitles-only');
@@ -79,40 +172,11 @@ export function AudioStorytellerBar({ summary }: StorytellerBarProps) {
       const utterance = new SpeechSynthesisUtterance(text);
       utteranceRef.current = utterance;
 
-      // Wait for voices if needed.
-      if (voices.length === 0) {
-        setState('loading');
-        const onVoices = () => {
-          voicesRef.current = synth.getVoices() ?? [];
-          voicesReady.current = true;
-          const voice = pickVoice(tag);
-          if (voice) utterance.voice = voice;
-          utterance.lang = tag;
-          utterance.onstart = () => setState('speaking');
-          utterance.onend = () => {
-            setState('idle');
-            utteranceRef.current = null;
-          };
-          utterance.onerror = () => {
-            setState('subtitles-only');
-            utteranceRef.current = null;
-          };
-          synth.speak(utterance);
-        };
-        // If voiceschanged already fired, getVoices may already be populated.
-        const existing = synth.getVoices();
-        if (existing && existing.length) {
-          voicesRef.current = existing;
-          onVoices();
-        } else {
-          synth.onvoiceschanged = onVoices;
-        }
-        return;
-      }
-
-      const voice = pickVoice(tag);
       if (voice) utterance.voice = voice;
-      utterance.lang = tag;
+      // Never claim te-IN/hi-IN while an English voice speaks English text: a
+      // language tag the voice cannot satisfy is exactly what makes Chrome drop
+      // the utterance or read it as gibberish.
+      utterance.lang = nativeSpeech ? tag : (voice?.lang ?? tag);
       utterance.onstart = () => setState('speaking');
       utterance.onend = () => {
         setState('idle');
@@ -138,9 +202,18 @@ export function AudioStorytellerBar({ summary }: StorytellerBarProps) {
     // Cancel any ongoing speech first.
     window.speechSynthesis?.cancel();
 
-    const text = storyTexts[speechLang] ?? storyTexts['en-IN'] ?? summaryText;
-    speak(text, langTagRef.current);
-  }, [speak, summaryText, storyTexts]);
+    const requested = speechLang;
+    const nativeVoice = pickVoice(requested);
+    const voice = nativeVoice ?? pickFallbackVoice();
+    // Telugu/Hindi script only when a voice that speaks it exists. Without the
+    // language pack an English voice cannot read it, so the explainer plays the
+    // English summary instead of going silent — the reported "switching to
+    // Telugu, audio explainer not working".
+    const text = nativeVoice
+      ? (storyTexts[requested] ?? storyTexts['en-IN'])
+      : storyTexts['en-IN'];
+    speak(text, requested, voice, Boolean(nativeVoice));
+  }, [pickFallbackVoice, pickVoice, speak, storyTexts]);
 
   // Keep lang tag ref in sync so a mid-speech language switch is reflected on
   // the next listen action.
@@ -148,22 +221,18 @@ export function AudioStorytellerBar({ summary }: StorytellerBarProps) {
     langTagRef.current = speechLang;
   }, [speechLang]);
 
-  // Pre-warm voices on mount.
+  // Voices arrive asynchronously (and again if the OS installs more), so keep
+  // them in state and re-render whenever the list changes.
   useEffect(() => {
     const synth = window.speechSynthesis;
     if (!synth) return;
-    const existing = synth.getVoices();
-    if (existing && existing.length) {
-      voicesRef.current = existing;
-      voicesReady.current = true;
-    } else {
-      synth.onvoiceschanged = () => {
-        voicesRef.current = synth.getVoices() ?? [];
-        voicesReady.current = true;
-      };
-    }
+    const load = () => setVoices(synth.getVoices() ?? []);
+    load();
+    synth.addEventListener?.('voiceschanged', load);
+    synth.onvoiceschanged = load;
     return () => {
       synth.cancel();
+      synth.removeEventListener?.('voiceschanged', load);
       synth.onvoiceschanged = null;
     };
   }, []);
@@ -207,6 +276,19 @@ export function AudioStorytellerBar({ summary }: StorytellerBarProps) {
             {isSpeaking ? t('storyteller.playing', 'Playing…') : t('storyteller.healthTitle', 'your health summary')}
           </p>
         )}
+        {/* Which voice this language will actually use — makes a missing voice
+            obvious instead of looking like "the voice never changes". */}
+        <p className="text-[10px] font-mono text-slate-500 mt-0.5 truncate">
+          {speechLang} ·{' '}
+          {activeVoice
+            ? voiceMatches(speechLang, activeVoice)
+              ? `${activeVoice.name} (${activeVoice.lang})`
+              : `fallback: ${activeVoice.name} (${activeVoice.lang}) — no ${speechLang} voice installed`
+            : voices.length
+              ? `no ${speechLang} voice installed — browser default`
+              : 'loading voices…'}
+          {!hasNativeVoice && activeVoice ? ' · reads the English summary here' : ''}
+        </p>
       </div>
 
       {/* Right: large glowing listen button */}

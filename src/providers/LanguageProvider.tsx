@@ -139,20 +139,48 @@ const PHRASES: Record<string, Record<LangCode, string>> = {
   'storyteller.hiSummary':
     { 'en-IN': 'नमस्ते। आपकी रिपोर्ट में प्लेटलेट और हीमोग्लोबिन की जांच हुई है। आपने बुखार और खांसी के लक्षण बताए हैं। आपकी स्थिति स्थिर है, लेकिन अगर सांस लेने में तकलीफ हो तो तुरंत 108 या डॉक्टर से संपर्क करें।', 'hi-IN': 'नमस्ते। आपकी रिपोर्ट में प्लेटलेट और हीमोग्लोबिन की जांच हुई है। आपने बुखार और खांसी के लक्षण बताए हैं। आपकी स्थिति स्थिर है, लेकिन अगर सांस लेने में तकलीफ हो तो तुरंत 108 या डॉक्टर से संपर्क करें।', 'te-IN': 'నమస్కారం. మీ రిపోర్ట్ పరిశీలించాము. మీకు జ్వరం మరియు దగ్గు ఉన్నట్లు తెలిపారు. తగిన విశ్రాంతి తీసుకోండి, ఇబ్బందిగా ఉంటే వెంటనే వైద్యుడిని సంప్రదించండి.', 'en-US': 'नमस्ते। आपकी रिपोर्ट में प्लेटलेट और हीमोग्लोबिन की जांच हुई है। आपने बुखार और खांसी के लक्षण बताए हैं। आपकी स्थिति स्थिर है, लेकिन अगर सांस लेने में तकलीफ हो तो तुरंत 108 या डॉक्टर से संपर्क करें।' },
   'storyteller.teSummary':
-    { 'en-IN': 'నమస్కారం. మీ రిపోర్ట్ పరిశీలించాము. మీకు జ్వరం మరియు దగ్గు ఉన్నట్లు తెలిపారు. తగిన విశ్రాంతి తీసుకోండి, ఇబ్బందిగా ఉంటే వెంటనే వైద్యుడిని సంప్రదించండి.', 'hi-IN': 'నమస్కారం. మీ రిపోర్ట్ పరిశీలించాము. మీకు జ్వరం మరియు దగ్గు ఉన్నట్లు తెలిపారు. తగిన విశ్రాంతి తీసుకోండి, ఇబ్బందిగా ఉంటే వెంటనే వైద్యుడిని సంప్రదించండి.', 'te-IN': 'నమస్కారం. మీ రిపోర్ట్ పరిశీలించాము. మీకు జ్వరం మరియు దగ్గు ఉన్నట్లు తెలిపారు. తగిన విశ్రాంతి తీసుకోండి, ఇబ్బందిగా ఉంటే వెంటనే వైద్యుడిని సంప్రదించండి.', 'en-US': 'నమస్కారం. మీ రిపోర్ట్ పరిశీలించాము. మీకు జ్వరం మరియు దగ్గు ఉన్నట్లు తెలిపారు. తగిన విశ్రాంతి తీసుకోండి, ఇబ్బందిగా ఉంటే వెంటనే వైద్యుడిని సంప్రదించండి.' },
+    { 'en-IN':'నమస్కారం డాక్టర్. నా రక్త పరీక్షలో ప్లేట్‌లెట్లు మరియు హీమోగ్లోబిన్ తనిఖీ చేశారు. నాకు జ్వరం మరియు దగ్గు ఉన్నట్లు నేను చెప్పాను. నా స్థితి ప్రస్తుతం స్థిరంగా ఉంది, కానీ నాకు శ్వాస తీసుకోవడంలో ఇబ్బంది వస్తే దయచేసి 108కి లేదా మీ స్థానిక వైద్యుడికి వెంటనే సంప్రదించండి.', 'hi-IN':'नमस्ते डॉक्टर। मेरी रिपोर्ट में प्लेटलेट और हीमोग्लोबिन की जांच हुई। मैंने आपको बुखार और खांसी के बारे में बताया। मेरी स्थिति अभी स्थिर है, लेकिन अगर सांस लेने में मुझे तकलीफ हो तो कृपया 108 या अपने स्थानीय डॉक्टर को तुरंत संपर्क करें।', 'te-IN':'నమస్కారం డాక్టర్. నా రక్త పరీక్షలో ప్లేట్‌లెట్లు మరియు హీమోగ్లోబిన్ తనిఖీ చేశారు. నాకు జ్వరం మరియు దగ్గు ఉన్నట్లు నేను చెప్పాను. నా స్థితి ప్రస్తుతం స్థిరంగా ఉంది, కానీ నాకు శ్వాస తీసుకోవడంలో ఇబ్బంది వస్తే దయచేసి 108కి లేదా మీ స్థానిక వైద్యుడికి వెంటనే సంప్రదించండి.', 'en-US':'నమస్కారం డాక్టర్. నా రక్త పరీక్షలో ప్లేట్‌లెట్లు మరియు హీమోగ్లోబిన్ తనిఖీ చేశారు. నాకు జ్వరం మరియు దగ్గు ఉన్నట్లు నేను చెప్పాను. నా స్థితి ప్రస్తుతం స్థిరంగా ఉంది, కానీ నాకు శ్వాస తీసుకోవడంలో ఇబ్బంది వస్తే దయచేసి 108కి లేదా మీ స్థానిక వైద్యుడికి వెంటనే సంప్రదించండి.' },
   'storyteller.enSummary':
     { 'en-IN': 'Hello. Your report checked platelets and haemoglobin. You reported fever and cough. Your condition seems stable, but if you have trouble breathing please call 108 or contact a doctor right away.', 'hi-IN': 'Hello. Your report checked platelets and haemoglobin. You reported fever and cough. Your condition seems stable, but if you have trouble breathing please call 108 or contact a doctor right away.', 'te-IN': 'Hello. Your report checked platelets and haemoglobin. You reported fever and cough. Your condition seems stable, but if you have trouble breathing please call 108 or contact a doctor right away.', 'en-US': 'Hello. Your report checked platelets and haemoglobin. You reported fever and cough. Your condition seems stable, but if you have trouble breathing please call 108 or contact a doctor right away.' },
 };
 
-export const LANG_DEFS: { code: LangCode; label: string; ttsTag: string }[] = [
-  { code: 'en-IN', label: 'English (India)', ttsTag: 'en-IN' },
-  { code: 'te-IN', label: 'తెలుగు (Telugu)', ttsTag: 'te-IN' },
-  { code: 'hi-IN', label: 'हिन्दी (Hindi)', ttsTag: 'hi-IN' },
-  { code: 'en-US', label: 'English (US)', ttsTag: 'en-US' },
+export const LANG_DEFS: { code: LangCode; label: string; ttsTag: string; note: string }[] = [
+  {
+    code: 'en-IN',
+    label: 'English (India)',
+    ttsTag: 'en-IN',
+    note: 'Indian-English accent. Speech recognition is tuned for Indian English; playback uses an Indian voice when one is installed, otherwise the closest English voice.',
+  },
+  {
+    code: 'te-IN',
+    label: 'తెలుగు (Telugu)',
+    ttsTag: 'te-IN',
+    note: 'Telugu. Needs a Telugu voice installed on this device — without one the text is still read, but in the browser default voice.',
+  },
+  {
+    code: 'hi-IN',
+    label: 'हिन्दी (Hindi)',
+    ttsTag: 'hi-IN',
+    note: 'Hindi. Needs a Hindi voice installed on this device — without one the text is still read, but in the browser default voice.',
+  },
+  {
+    code: 'en-US',
+    label: 'English (US)',
+    ttsTag: 'en-US',
+    note: 'American-English accent. Recognition and playback both target US English — pick this only if you speak with a US accent.',
+  },
 ];
 
+/**
+ * BCP-47 tag handed to speech synthesis and speech recognition.
+ *
+ * This used to collapse en-US onto en-IN, which made the two English choices
+ * behave identically — same recogniser locale and the same voice. Each language
+ * now keeps its own tag, and the voice picker degrades gracefully when a device
+ * has no voice for it.
+ */
 export function speechLangFor(langCode: LangCode): string {
-  return langCode === 'en-US' ? 'en-IN' : langCode;
+  return langCode;
 }
 
 export const LanguageContext = createContext<LanguageContextValue | undefined>(undefined);

@@ -1,0 +1,42 @@
+{
+  "en-IN": {
+    "symptomInput.header": "",
+    "badge.chest": "",
+    "reportIngestion.header": "",
+    "biomarkerTable.header": "",
+    "layout.badgeHeart": "",
+    "storyteller.title": "",
+    "misc.listen": "",
+    "storyteller.hiSummary": ""
+  },
+  "te-IN": {
+    "symptomInput.header": "",
+    "badge.chest": "",
+    "reportIngestion.header": "",
+    "biomarkerTable.header": "",
+    "layout.badgeHeart": "",
+    "storyteller.title": "",
+    "misc.listen": "",
+    "storyteller.hiSummary": ""
+  },
+  "hi-IN": {
+    "symptomInput.header": "",
+    "badge.chest": "",
+    "reportIngestion.header": "",
+    "biomarkerTable.header": "",
+    "layout.badgeHeart": "",
+    "storyteller.title": "",
+    "misc.listen": "",
+    "storyteller.hiSummary": ""
+  },
+  "en-US": {
+    "symptomInput.header": "",
+    "badge.chest": "",
+    "reportIngestion.header": "",
+    "biomarkerTable.header": "",
+    "layout.badgeHeart": "",
+    "storyteller.title": "",
+    "misc.listen": "",
+    "storyteller.hiSummary": ""
+  }
+}
